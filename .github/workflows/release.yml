@@ -27,6 +27,8 @@ jobs:
           java-version: '21'
           cache: gradle
 
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
       - name: Stamp build version
         id: version
         shell: bash

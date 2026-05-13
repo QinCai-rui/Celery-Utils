@@ -27,6 +27,8 @@ jobs:
           java-version: '21'
           cache: gradle
 
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
       - name: Stamp build version
         id: version
         shell: bash
@@ -37,6 +39,9 @@ jobs:
 
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "Build version: ${VERSION}"
+
+        - name: Make gradlew executable
+          run: chmod +x ./gradlew
 
       - name: Build and test
         run: ./gradlew -Pversion=${{ steps.version.outputs.version }} build test
