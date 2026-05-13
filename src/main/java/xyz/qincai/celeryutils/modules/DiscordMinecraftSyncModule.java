@@ -9,6 +9,8 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import xyz.qincai.celeryutils.CeleryUtils;
@@ -41,15 +43,18 @@ public class DiscordMinecraftSyncModule extends ListenerAdapter implements Celer
     @Override
     public boolean initialize() {
         try {
-            String token = plugin.getConfig().getString("modules.discord-sync.bot-token");
+            java.io.File cfgFile = new java.io.File(plugin.getDataFolder(), "modules/discord-sync/config.yml");
+            FileConfiguration cfg = YamlConfiguration.loadConfiguration(cfgFile);
+
+            String token = cfg.getString("bot-token");
             if (token == null || token.isEmpty()) {
-                plugin.getLogger().warning("Discord bot token not configured!");
+                plugin.getLogger().warning("Discord bot token not configured in modules/discord-sync/config.yml!");
                 return false;
             }
-            
-            long guildId = plugin.getConfig().getLong("modules.discord-sync.guild-id");
-            if (guildId == 0) {
-                plugin.getLogger().warning("Discord guild ID not configured!");
+
+            long guildId = cfg.getLong("guild-id", 0L);
+            if (guildId == 0L) {
+                plugin.getLogger().warning("Discord guild ID not configured in modules/discord-sync/config.yml!");
                 return false;
             }
             

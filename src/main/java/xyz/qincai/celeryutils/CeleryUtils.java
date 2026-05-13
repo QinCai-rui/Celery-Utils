@@ -3,6 +3,7 @@ package xyz.qincai.celeryutils;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import xyz.qincai.celeryutils.api.CeleryModule;
 import xyz.qincai.celeryutils.modules.DiscordMinecraftSyncModule;
 import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
@@ -30,11 +31,29 @@ public class CeleryUtils extends JavaPlugin {
         
         // Save default config if it doesn't exist
         saveDefaultConfig();
+        // Ensure plugin data folder exists
+        if (!getDataFolder().exists()) getDataFolder().mkdirs();
+        // Save default module config files to data folder if missing
+        saveModuleResource("modules/discord-sync/config.yml");
+        saveModuleResource("modules/economy-permissions/config.yml");
         
         // Initialize modules
         initializeModules();
         
         getLogger().info("CeleryUtils enabled successfully!");
+    }
+
+    private void saveModuleResource(String resourcePath) {
+        try {
+            // Only save if the file does not already exist in data folder
+            java.io.File outFile = new java.io.File(getDataFolder(), resourcePath);
+            if (outFile.exists()) return;
+            java.io.File parent = outFile.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
+            saveResource(resourcePath, false);
+        } catch (Exception ignored) {
+            getLogger().warning("Failed to save module resource: " + resourcePath);
+        }
     }
     
     @Override
@@ -122,6 +141,81 @@ public class CeleryUtils extends JavaPlugin {
                 }
                 case "help" -> {
                     sendHelp(sender);
+                    return true;
+                }
+                case "buyperm" -> {
+                    if (!(sender instanceof Player)) {
+                        sender.sendMessage("§cOnly players can purchase permissions.");
+                        return true;
+                    }
+                    if (args.length < 2) {
+                        sender.sendMessage("§cUsage: /celeryutils buyperm <rule>");
+                        return true;
+                    }
+                    String rule = args[1];
+                    CeleryModule mod = getModule("Economy Permissions");
+                    if (mod == null || !mod.isEnabled()) {
+                        sender.sendMessage("§cEconomy Permissions module is not available.");
+                        return true;
+                    }
+                    EconomyPermissionsModule econ = (EconomyPermissionsModule) mod;
+                    econ.purchasePermission((Player) sender, rule);
+                    return true;
+                }
+                case "setprice" -> {
+                    if (!sender.hasPermission("celeryutils.admin")) {
+                        sender.sendMessage("§cYou do not have permission to use this command.");
+                        return true;
+                    }
+                    if (args.length < 3) {
+                        sender.sendMessage("§cUsage: /celeryutils setprice <rule> <price>");
+                        return true;
+                    }
+                    String ruleKey = args[1];
+                    double price;
+                    try { price = Double.parseDouble(args[2]); } catch (NumberFormatException e) {
+                        sender.sendMessage("§cInvalid price: " + args[2]);
+                        return true;
+                    }
+                    CeleryModule modPrice = getModule("Economy Permissions");
+                    if (modPrice == null || !modPrice.isEnabled()) {
+                        sender.sendMessage("§cEconomy Permissions module is not available.");
+                        return true;
+                    }
+                    EconomyPermissionsModule econPrice = (EconomyPermissionsModule) modPrice;
+                    if (econPrice.setRulePrice(ruleKey, price)) {
+                        sender.sendMessage("§aSet price for " + ruleKey + " to " + price);
+                    } else {
+                        sender.sendMessage("§cFailed to set price (unknown rule)");
+                    }
+                    return true;
+                }
+                case "setduration" -> {
+                    if (!sender.hasPermission("celeryutils.admin")) {
+                        sender.sendMessage("§cYou do not have permission to use this command.");
+                        return true;
+                    }
+                    if (args.length < 3) {
+                        sender.sendMessage("§cUsage: /celeryutils setduration <rule> <seconds>");
+                        return true;
+                    }
+                    String ruleKey = args[1];
+                    long seconds;
+                    try { seconds = Long.parseLong(args[2]); } catch (NumberFormatException e) {
+                        sender.sendMessage("§cInvalid seconds: " + args[2]);
+                        return true;
+                    }
+                    CeleryModule modDur = getModule("Economy Permissions");
+                    if (modDur == null || !modDur.isEnabled()) {
+                        sender.sendMessage("§cEconomy Permissions module is not available.");
+                        return true;
+                    }
+                    EconomyPermissionsModule econDur = (EconomyPermissionsModule) modDur;
+                    if (econDur.setRuleDuration(ruleKey, seconds)) {
+                        sender.sendMessage("§aSet duration for " + ruleKey + " to " + seconds + " seconds");
+                    } else {
+                        sender.sendMessage("§cFailed to set duration (unknown rule)");
+                    }
                     return true;
                 }
                 default -> {
