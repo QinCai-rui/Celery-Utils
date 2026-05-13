@@ -40,8 +40,8 @@ jobs:
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "Build version: ${VERSION}"
 
-        - name: Make gradlew executable
-          run: chmod +x ./gradlew
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Build and test
         run: ./gradlew -Pversion=${{ steps.version.outputs.version }} build test
