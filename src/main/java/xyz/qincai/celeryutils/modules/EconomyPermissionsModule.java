@@ -180,7 +180,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     public boolean setRulePrice(String ruleKey, double price) {
         EconomyPermissionRule rule = rules.get(ruleKey);
         if (rule == null) return false;
-        rule.price = price;
+        rules.put(ruleKey, rule.withPrice(price));
         // Persist to module config
         File cfgFile = new File(plugin.getDataFolder(), "modules/economy-permissions/config.yml");
         FileConfiguration cfg = YamlConfiguration.loadConfiguration(cfgFile);
@@ -192,13 +192,74 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     public boolean setRuleDuration(String ruleKey, long durationSeconds) {
         EconomyPermissionRule rule = rules.get(ruleKey);
         if (rule == null) return false;
-        rule.durationSeconds = durationSeconds;
+        rules.put(ruleKey, rule.withDuration(durationSeconds));
         File cfgFile = new File(plugin.getDataFolder(), "modules/economy-permissions/config.yml");
         FileConfiguration cfg = YamlConfiguration.loadConfiguration(cfgFile);
         cfg.set("rules." + ruleKey + ".duration-seconds", durationSeconds);
         try { cfg.save(cfgFile); } catch (Exception e) { plugin.getLogger().warning("Failed to save config: " + e.getMessage()); }
         return true;
     }
+
+    /**
+     * Checks player balance against rules on join
+     */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (!isEnabled()) return;
+        Player player = event.getPlayer();
+        if (checkedPlayers.contains(player.getName())) return;
+        
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            checkPlayerBalance(player);
+            checkedPlayers.add(player.getName());
+        });
+    }
+
+    /**
+     * Periodically check all online players
+     */
+    public void runPeriodicCheck() {
+        if (!isEnabled()) return;
+        
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                checkPlayerBalance(player);
+            }
+        }, 20L * 60 * 5, 20L * 60 * 5); // Every 5 minutes
+    }
+
+    /**
+     * Checks a player's balance and applies/revokes permissions
+     */
+    private void checkPlayerBalance(Player player) {
+        if (!player.isOnline()) return;
+        double balance = economy.getBalance(player);
+        
+        for (Map.Entry<String, EconomyPermissionRule> entry : rules.entrySet()) {
+            EconomyPermissionRule rule = entry.getValue();
+            boolean hasPerm = permission.playerHas(player, rule.permissionNode());
+            
+            if (balance >= rule.minBalance()) {
+                if (!hasPerm) {
+                    permission.playerAdd(player, rule.permissionNode());
+                }
+            } else {
+                if (hasPerm && rule.revokeOnBalanceBelow()) {
+                    permission.playerRemove(player, rule.permissionNode());
+                }
+            }
+        }
+    }
+
+    /**
+     * Creates default rules if config is missing
+     */
+    private void createDefaultRules() {
+        plugin.getLogger().info("Creating default economy permission rules...");
+        rules.put("vip", new EconomyPermissionRule(1000, "group.vip", true, false, 0, 0));
+        rules.put("premium", new EconomyPermissionRule(5000, "group.premium", true, false, 0, 0));
+    }
+}
     
     /**
      * Creates default permission rules

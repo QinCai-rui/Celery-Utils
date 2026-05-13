@@ -3,8 +3,8 @@ version: ${project.version}
 main: xyz.qincai.celeryutils.CeleryUtils
 description: ${project.description}
 authors:
-  - Qincai
-website: https://github.com/yourusername/Celery-Utils
+  - QinCai-rui
+website: https://github.com/QinCai-rui/Celery-Utils
 
 api-version: 1.20
 
