@@ -1,0 +1,29 @@
+name: CeleryUtils
+version: ${project.version}
+main: xyz.qincai.celeryutils.CeleryUtils
+description: ${project.description}
+authors:
+  - Qincai
+website: https://github.com/yourusername/Celery-Utils
+
+api-version: 1.20
+
+depend:
+  - Vault
+
+commands:
+  celeryutils:
+    description: Main command for CeleryUtils
+    usage: /celeryutils <subcommand>
+    aliases: [cu]
+
+permissions:
+  celeryutils.admin:
+    description: Admin access to CeleryUtils
+    default: op
+  celeryutils.sync:
+    description: Permission for Discord-Minecraft sync
+    default: op
+  celeryutils.economy:
+    description: Permission for Economy Permissions module
+    default: op

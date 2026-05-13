@@ -1,0 +1,51 @@
+# CeleryUtils Configuration
+# Modular utility plugin for Minecraft servers
+
+# Global Settings
+global:
+  debug: false
+
+# Module Configurations
+modules:
+  
+  # Discord-Minecraft Username Sync
+  discord-sync:
+    enabled: true
+    bot-token: "YOUR_DISCORD_BOT_TOKEN_HERE"
+    guild-id: 1234567890
+    # Instructions:
+    # 1. Create a Discord bot application at https://discord.com/developers/applications
+    # 2. Get the bot token and paste it above
+    # 3. Get your guild (server) ID and paste it above
+    # 4. Use /celeryutils sync <player> <discord-id> to link accounts
+  
+  # Economy Permissions
+  economy-permissions:
+    enabled: true
+    # Permission rules based on balance thresholds
+    # Example format:
+    # rule-name:
+    #   min-balance: 100
+    #   permission: "celeryutils.vip"
+    #   revoke-on-balance-below: true
+    
+    rules:
+      vip-tier:
+        min-balance: 100.0
+        permission: "celeryutils.vip"
+        revoke-on-balance-below: true
+      
+      premium-tier:
+        min-balance: 500.0
+        permission: "celeryutils.premium"
+        revoke-on-balance-below: true
+      
+      elite-tier:
+        min-balance: 1000.0
+        permission: "celeryutils.elite"
+        revoke-on-balance-below: true
+    
+    # Instructions:
+    # 1. Define rules with min-balance threshold and permission node
+    # 2. Set revoke-on-balance-below to true to remove permission when balance drops below threshold
+    # 3. Restart server to apply changes
