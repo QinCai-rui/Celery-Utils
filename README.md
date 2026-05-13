@@ -2,6 +2,15 @@
 
 Utility plugin for Minecraft Servers and SMPs
 
+## Build
+
+This project uses Maven with Java 21.
+
+```bash
+mvn -B -ntp test
+mvn -B -ntp package
+```
+
 ## Features
 
 Modular design that allows for specific modules to be enabled or disabled as needed

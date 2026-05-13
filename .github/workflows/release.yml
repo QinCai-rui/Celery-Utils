@@ -25,10 +25,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
+          cache: maven
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
       - name: Stamp build version
         id: version
         shell: bash
@@ -41,7 +39,7 @@ jobs:
           echo "Build version: ${VERSION}"
 
       - name: Build package
-        run: ./gradlew -Pversion=${{ steps.version.outputs.version }} build shadowJar
+        run: mvn -B -ntp -Drevision=${{ steps.version.outputs.version }} package
 
       - name: Create GitHub release
         env:
@@ -49,6 +47,6 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           gh release create "${VERSION}" \
-            build/libs/CeleryUtils.jar \
+            target/CeleryUtils.jar \
             --title "${VERSION}" \
             --generate-notes
