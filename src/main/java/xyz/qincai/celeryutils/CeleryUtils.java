@@ -1,5 +1,8 @@
 package xyz.qincai.celeryutils;
 
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -10,6 +13,13 @@ import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.logging.Level;
 
 /**
@@ -33,8 +43,9 @@ public class CeleryUtils extends JavaPlugin {
             getDataFolder().mkdirs();
         }
 
-        saveModuleResource("modules/discord-link/config.yml");
-        saveModuleResource("modules/economy-permissions/config.yml");
+        upgradeConfig("config.yml", new File(getDataFolder(), "config.yml"), "main config");
+        upgradeConfig("modules/discord-link/config.yml", new File(getDataFolder(), "modules/discord-link/config.yml"), "Discord Link module config");
+        upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
 
         initializeModules();
 
@@ -64,6 +75,116 @@ public class CeleryUtils extends JavaPlugin {
             saveResource(resourcePath, false);
         } catch (Exception ignored) {
             getLogger().warning("Failed to save module resource: " + resourcePath);
+        }
+    }
+
+    private void upgradeConfig(String resourcePath, File targetFile, String label) {
+        try {
+            File legacyTarget = null;
+            if ("modules/discord-link/config.yml".equals(resourcePath)) {
+                legacyTarget = new File(getDataFolder(), "modules/discord-sync/config.yml");
+            }
+
+            if (!targetFile.exists() && legacyTarget != null && legacyTarget.exists()) {
+                File parent = targetFile.getParentFile();
+                if (parent != null && !parent.exists()) {
+                    parent.mkdirs();
+                }
+
+                Files.copy(legacyTarget.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            if (!targetFile.exists()) {
+                saveResource(resourcePath, false);
+                return;
+            }
+
+            InputStream resourceStream = getResource(resourcePath);
+            if (resourceStream == null) {
+                getLogger().warning("Missing bundled resource for " + resourcePath);
+                return;
+            }
+
+            FileConfiguration defaultConfig;
+            try (InputStream in = resourceStream) {
+                defaultConfig = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(in));
+            }
+
+            FileConfiguration currentConfig = YamlConfiguration.loadConfiguration(targetFile);
+            double currentVersion = currentConfig.getDouble("config-version", 0.0);
+            double defaultVersion = defaultConfig.getDouble("config-version", currentVersion);
+
+            if (Double.compare(currentVersion, defaultVersion) >= 0) {
+                return;
+            }
+
+            backupConfig(targetFile, label, currentVersion, defaultVersion);
+            mergeMissingValues(currentConfig, defaultConfig, "");
+            currentConfig.set("config-version", defaultVersion);
+            currentConfig.save(targetFile);
+            getLogger().info("Upgraded " + label + " from v" + currentVersion + " to v" + defaultVersion);
+        } catch (Exception e) {
+            getLogger().log(Level.WARNING, "Failed to upgrade " + label, e);
+        }
+    }
+
+    private void backupConfig(File targetFile, String label, double currentVersion, double newVersion) throws IOException {
+        File backupDir = new File(getDataFolder(), "backups");
+        if (!backupDir.exists() && !backupDir.mkdirs()) {
+            throw new IOException("Unable to create backup directory: " + backupDir);
+        }
+
+        String timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+        String safeLabel = label.toLowerCase().replaceAll("[^a-z0-9]+", "-");
+        File backupFile = new File(backupDir, safeLabel + "-v" + currentVersion + "-to-v" + newVersion + "-" + timestamp + ".yml");
+        Files.copy(targetFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private void mergeMissingValues(FileConfiguration target, FileConfiguration defaults, String pathPrefix) {
+        for (String key : defaults.getKeys(false)) {
+            String path = pathPrefix.isEmpty() ? key : pathPrefix + "." + key;
+            if (defaults.isConfigurationSection(key)) {
+                ConfigurationSection defaultSection = defaults.getConfigurationSection(key);
+                if (defaultSection == null) {
+                    continue;
+                }
+
+                if (!target.isConfigurationSection(key)) {
+                    target.createSection(key);
+                }
+
+                ConfigurationSection targetSection = target.getConfigurationSection(key);
+                if (targetSection != null) {
+                    mergeMissingValues(targetSection, defaultSection);
+                }
+                continue;
+            }
+
+            if (!target.contains(path)) {
+                target.set(path, defaults.get(key));
+            }
+        }
+    }
+
+    private void mergeMissingValues(ConfigurationSection target, ConfigurationSection defaults) {
+        for (String key : defaults.getKeys(false)) {
+            if (defaults.isConfigurationSection(key)) {
+                ConfigurationSection defaultSection = defaults.getConfigurationSection(key);
+                if (defaultSection == null) {
+                    continue;
+                }
+
+                if (!target.isConfigurationSection(key)) {
+                    target.createSection(key);
+                }
+
+                ConfigurationSection targetSection = target.getConfigurationSection(key);
+                if (targetSection != null) {
+                    mergeMissingValues(targetSection, defaultSection);
+                }
+            } else if (!target.contains(key)) {
+                target.set(key, defaults.get(key));
+            }
         }
     }
 

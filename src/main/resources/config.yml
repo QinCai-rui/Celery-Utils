@@ -2,6 +2,8 @@ global:
 # CeleryUtils Configuration
 # Global settings and module enable flags
 
+config-version: 1.0
+
 global:
   debug: false
 

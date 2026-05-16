@@ -1,4 +1,5 @@
 # Economy Permissions module defaults
+config-version: 1.0
 # Define permission rules by key
 rules:
   slash-echest:

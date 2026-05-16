@@ -1,4 +1,5 @@
 # Discord Link module defaults
+config-version: 1.0
 bot-token: "YOUR_DISCORD_BOT_TOKEN_HERE"
 # Replace with your guild/server ID
 guild-id: 12345678901234567890
