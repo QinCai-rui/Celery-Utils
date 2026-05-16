@@ -1,6 +1,0 @@
-# Discord-Minecraft Sync module defaults
-bot-token: "YOUR_DISCORD_BOT_TOKEN_HERE"
-# Replace with your guild/server ID
-guild-id: 12345678901234567890
-# Optional: initial mappings of discord-id -> minecraft-username
-mappings: {}

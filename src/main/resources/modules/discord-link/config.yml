@@ -1,0 +1,36 @@
+# Discord Link module defaults
+bot-token: "YOUR_DISCORD_BOT_TOKEN_HERE"
+# Replace with your guild/server ID
+guild-id: 12345678901234567890
+
+linking:
+  # Allow players to send the code to the bot in DMs.
+  accept-dm: true
+  # Allow players to send the code to the configured channel.
+  accept-channel: true
+  # Discord channel ID that receives link codes. Set to 0 to disable channel linking.
+  channel-id: 0
+  # Code lifetime in seconds.
+  code-expiry-seconds: 600
+  # Sync the Discord nickname immediately after a link is confirmed.
+  sync-on-link: true
+  # Sync the Discord nickname whenever the player joins the server.
+  sync-on-join: true
+  # Persist successful links to the module config file.
+  persist-links: true
+  # Nickname template. Available placeholders: %minecraft_name%, %player_name%.
+  nickname-format: "%minecraft_name%"
+
+messages:
+  player-code-issued: "§aDiscord link code: §e%code% §7(Expires in %minutes% minute(s)). Send it to the Discord bot in DM or the configured channel."
+  player-code-expired: "§cYour Discord link code expired. Run §e/celeryutils link §cto get a new one."
+  player-linked: "§aYour Minecraft account is now linked to Discord."
+  discord-code-invalid: "§cThat link code is invalid or unknown."
+  discord-code-expired: "§cThat link code has expired. Ask the player to run /celeryutils link again."
+  discord-linked: "Linked Minecraft account %minecraft_name%."
+
+# Successful links are stored here by Discord ID.
+links: {}
+
+# Legacy support for old username-based mappings.
+mappings: {}

@@ -21,8 +21,8 @@ permissions:
   celeryutils.admin:
     description: Admin access to CeleryUtils
     default: op
-  celeryutils.sync:
-    description: Permission for Discord-Minecraft sync
+  celeryutils.discordlink:
+    description: Permission for Discord Link module
     default: op
   celeryutils.economy:
     description: Permission for Economy Permissions module

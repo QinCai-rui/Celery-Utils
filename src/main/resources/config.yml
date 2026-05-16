@@ -7,7 +7,7 @@ global:
 
 # Enable/disable modules here. Module-specific config files live under /modules/<module>/config.yml
 modules:
-  discord-sync:
+  discord-link:
     enabled: true
   economy-permissions:
     enabled: true

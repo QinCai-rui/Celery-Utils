@@ -17,6 +17,6 @@ Modular design that allows for specific modules to be enabled or disabled as nee
 
 ### Modules
 
-- **Discord-Minecraft username sync**: very basic module that syncs Minecraft usernames to Discord nicknames.
+- **Discord Link**: generates a 6-digit code in Minecraft and links the account to Discord so nicknames can stay in sync.
 
 - **Economy Permissions**: allows permissions to be granted based on a player's balance in the economy or be purchased using the economy.
