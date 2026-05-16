@@ -122,8 +122,9 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 boolean buyable = rulesSection.getBoolean(key + ".buyable", false);
                 double price = rulesSection.getDouble(key + ".price", 0.0);
                 long durationSeconds = rulesSection.getLong(key + ".duration-seconds", 0L);
+                String description = rulesSection.getString(key + ".description", "No description provided.");
                 if (permissionNode != null) {
-                    rules.put(key, new EconomyPermissionRule(minBalance, permissionNode, revoke, autoGrant, buyable, price, durationSeconds));
+                    rules.put(key, new EconomyPermissionRule(minBalance, permissionNode, revoke, autoGrant, buyable, price, durationSeconds, description));
                 }
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to load rule: " + key);
@@ -273,9 +274,31 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     /**
      * Creates default rules if config is missing
      */
+    /**
+     * Creates default rules if config is missing
+     */
     private void createDefaultRules() {
         plugin.getLogger().info("Creating default economy permission rules...");
-        rules.put("vip", new EconomyPermissionRule(1000.0, "group.vip", true, true, false, 0.0, 0L));
-        rules.put("premium", new EconomyPermissionRule(5000.0, "group.premium", true, true, false, 0.0, 0L));
+        rules.put("vip", new EconomyPermissionRule(1000.0, "group.vip", true, true, false, 0.0, 0L, "VIP status based on balance"));
+        rules.put("premium", new EconomyPermissionRule(5000.0, "group.premium", true, true, false, 0.0, 0L, "Premium status based on balance"));
+    }
+
+    /**
+     * Lists all available permission tiers to a player
+     */
+    public void listPermissions(Player player) {
+        player.sendMessage("§6§lAvailable Permission Tiers:");
+        for (Map.Entry<String, EconomyPermissionRule> entry : rules.entrySet()) {
+            String key = entry.getKey();
+            EconomyPermissionRule rule = entry.getValue();
+            player.sendMessage("§e- §b" + key + " §7(" + rule.permissionNode() + ")");
+            player.sendMessage("  §fDescription: §7" + rule.description());
+            if (rule.buyable()) {
+                player.sendMessage("  §fPrice: §a$" + rule.price());
+            }
+            if (rule.minBalance() > 0) {
+                player.sendMessage("  §fRequirement: §e$" + rule.minBalance() + " balance");
+            }
+        }
     }
 }

@@ -18,6 +18,8 @@ rules:
     # The cost to purchase this permission (deducts from player balance).
     # Once purchased, the player keeps the permission even if their balance drops to zero.
     price: 1000.0
+    # Description shown to players in the /celeryutils ecoperm list command
+    description: "Access to the virtual enderchest command /echest"
     # duration-seconds: 0 for permanent, >0 for temporary
     duration-seconds: 0
   mending-shift-right-click:

@@ -143,24 +143,43 @@ public class CeleryUtils extends JavaPlugin {
                     sendHelp(sender);
                     return true;
                 }
-                case "buyperm" -> {
-                    if (!(sender instanceof Player)) {
-                        sender.sendMessage("§cOnly players can purchase permissions.");
-                        return true;
-                    }
+                case "ecoperm" -> {
                     if (args.length < 2) {
-                        sender.sendMessage("§cUsage: /celeryutils buyperm <rule>");
+                        sender.sendMessage("§cUsage: /celeryutils ecoperm <buy|list> [rule]");
                         return true;
                     }
-                    String rule = args[1];
+
                     CeleryModule mod = getModule("Economy Permissions");
                     if (mod == null || !mod.isEnabled()) {
                         sender.sendMessage("§cEconomy Permissions module is not available.");
                         return true;
                     }
                     EconomyPermissionsModule econ = (EconomyPermissionsModule) mod;
-                    econ.purchasePermission((Player) sender, rule);
-                    return true;
+
+                    String subAction = args[1].toLowerCase();
+                    if (subAction.equals("list")) {
+                        if (!(sender instanceof Player)) {
+                            sender.sendMessage("§cOnly players can list permissions.");
+                            return true;
+                        }
+                        econ.listPermissions((Player) sender);
+                        return true;
+                    } else if (subAction.equals("buy")) {
+                        if (!(sender instanceof Player)) {
+                            sender.sendMessage("§cOnly players can purchase permissions.");
+                            return true;
+                        }
+                        if (args.length < 3) {
+                            sender.sendMessage("§cUsage: /celeryutils ecoperm buy <rule>");
+                            return true;
+                        }
+                        String rule = args[2];
+                        econ.purchasePermission((Player) sender, rule);
+                        return true;
+                    } else {
+                        sender.sendMessage("§cUnknown action: " + subAction + ". Use buy or list.");
+                        return true;
+                    }
                 }
                 case "setprice" -> {
                     if (!sender.hasPermission("celeryutils.admin")) {
