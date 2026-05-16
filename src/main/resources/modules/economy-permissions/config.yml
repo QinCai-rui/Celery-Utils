@@ -1,25 +1,38 @@
 # Economy Permissions module defaults
 # Define permission rules by key
 rules:
-  vip-tier:
-    min-balance: 100.0
-    permission: "celeryutils.vip"
-    revoke-on-balance-below: true
+  slash-echest:
+    # Minimum balance required for the user to be eligible for this permission
+    min-balance: 1000.0
+    # The permission node to grant the user
+    permission: "essentials.enderchest"
+    # Whether to automatically grant this permission for free when balance >= min-balance.
+    # Note: If auto-granted for free, it may be revoked if balance drops (see below).
+    auto-grant: false
+    # Whether to remove the permission if the user's balance falls below min-balance.
+    # IMPORTANT: This ONLY applies to auto-granted permissions. 
+    # If a player manually BUYS a permission, it will NEVER be revoked by balance checks.
+    revoke-on-balance-below: false
+    # Whether the permission can be purchased via a command
     buyable: true
-    price: 100.0
+    # The cost to purchase this permission (deducts from player balance).
+    # Once purchased, the player keeps the permission even if their balance drops to zero.
+    price: 1000.0
     # duration-seconds: 0 for permanent, >0 for temporary
     duration-seconds: 0
-  premium-tier:
-    min-balance: 500.0
-    permission: "celeryutils.premium"
+  mending-shift-right-click:
+    min-balance: 2500.0
+    permission: "purpur.mending_shift_click"
+    auto-grant: false
     revoke-on-balance-below: true
     buyable: true
-    price: 500.0
+    price: 2500.0
     duration-seconds: 0
-  elite-tier:
-    min-balance: 1000.0
-    permission: "celeryutils.elite"
+  echest-6rows:
+    min-balance: 10000.0
+    permission: "purpur.enderchest.rows.6"
+    auto-grant: false
     revoke-on-balance-below: true
     buyable: true
-    price: 1000.0
+    price: 10000.0
     duration-seconds: 0

@@ -3,6 +3,7 @@ package xyz.qincai.celeryutils.modules;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -10,6 +11,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import xyz.qincai.celeryutils.CeleryUtils;
 import xyz.qincai.celeryutils.api.CeleryModule;
@@ -30,9 +33,11 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     private boolean enabled = false;
     private final Map<String, EconomyPermissionRule> rules = new HashMap<>();
     private final Set<String> checkedPlayers = Collections.synchronizedSet(new HashSet<>());
+    private final NamespacedKey purchasedKey;
     
     public EconomyPermissionsModule(CeleryUtils plugin) {
         this.plugin = plugin;
+        this.purchasedKey = new NamespacedKey(plugin, "purchased_permissions");
     }
     
     @Override
@@ -113,11 +118,12 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 double minBalance = rulesSection.getDouble(key + ".min-balance", 0);
                 String permissionNode = rulesSection.getString(key + ".permission");
                 boolean revoke = rulesSection.getBoolean(key + ".revoke-on-balance-below", false);
+                boolean autoGrant = rulesSection.getBoolean(key + ".auto-grant", true);
                 boolean buyable = rulesSection.getBoolean(key + ".buyable", false);
                 double price = rulesSection.getDouble(key + ".price", 0.0);
                 long durationSeconds = rulesSection.getLong(key + ".duration-seconds", 0L);
                 if (permissionNode != null) {
-                    rules.put(key, new EconomyPermissionRule(minBalance, permissionNode, revoke, buyable, price, durationSeconds));
+                    rules.put(key, new EconomyPermissionRule(minBalance, permissionNode, revoke, autoGrant, buyable, price, durationSeconds));
                 }
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to load rule: " + key);
@@ -155,7 +161,14 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 return false;
             }
             // Grant permission
-            permission.playerAdd(player, rule.permissionNode);
+            permission.playerAdd(player, rule.permissionNode);            
+            // Mark as purchased to prevent balance-based revocation
+            PersistentDataContainer data = player.getPersistentDataContainer();
+            String currentPurchased = data.getOrDefault(purchasedKey, PersistentDataType.STRING, "");
+            if (!currentPurchased.contains(rule.permissionNode())) {
+                String newVal = currentPurchased.isEmpty() ? rule.permissionNode() : currentPurchased + "," + rule.permissionNode();
+                data.set(purchasedKey, PersistentDataType.STRING, newVal);
+            }
             player.sendMessage("§aPurchased and granted permission: " + rule.permissionNode);
 
             // If temporary, schedule revoke
@@ -235,16 +248,22 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         if (!player.isOnline()) return;
         double balance = economy.getBalance(player);
         
+        // Get list of permissions this player has purchased
+        String purchased = player.getPersistentDataContainer().getOrDefault(purchasedKey, PersistentDataType.STRING, "");
+        List<String> purchasedList = Arrays.asList(purchased.split(","));
+
         for (Map.Entry<String, EconomyPermissionRule> entry : rules.entrySet()) {
             EconomyPermissionRule rule = entry.getValue();
             boolean hasPerm = permission.playerHas(player, rule.permissionNode());
+            boolean isPurchased = purchasedList.contains(rule.permissionNode());
             
             if (balance >= rule.minBalance()) {
-                if (!hasPerm) {
+                if (!hasPerm && rule.autoGrant()) {
                     permission.playerAdd(player, rule.permissionNode());
                 }
             } else {
-                if (hasPerm && rule.revokeOnBalanceBelow()) {
+                // Only revoke if they haven't explicitly purchased it
+                if (hasPerm && rule.revokeOnBalanceBelow() && !isPurchased) {
                     permission.playerRemove(player, rule.permissionNode());
                 }
             }
