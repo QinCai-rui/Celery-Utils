@@ -143,25 +143,25 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
             player.sendMessage("§cUnknown permission tier: " + ruleKey);
             return false;
         }
-        if (!rule.buyable) {
+        if (!rule.buyable()) {
             player.sendMessage("§cThis permission is not available for purchase.");
             return false;
         }
 
         double balance = economy.getBalance(player);
-        if (balance < rule.price) {
-            player.sendMessage("§cYou do not have enough balance. Price: " + rule.price + " Your balance: " + balance);
+        if (balance < rule.price()) {
+            player.sendMessage("§cYou do not have enough balance. Price: " + rule.price() + " Your balance: " + balance);
             return false;
         }
 
         try {
-            var response = economy.withdrawPlayer(player, rule.price);
+            var response = economy.withdrawPlayer(player, rule.price());
             if (!response.transactionSuccess()) {
                 player.sendMessage("§cFailed to withdraw funds: " + response.errorMessage);
                 return false;
             }
             // Grant permission
-            permission.playerAdd(player, rule.permissionNode);            
+            permission.playerAdd(player, rule.permissionNode());            
             // Mark as purchased to prevent balance-based revocation
             PersistentDataContainer data = player.getPersistentDataContainer();
             String currentPurchased = data.getOrDefault(purchasedKey, PersistentDataType.STRING, "");
@@ -169,15 +169,15 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 String newVal = currentPurchased.isEmpty() ? rule.permissionNode() : currentPurchased + "," + rule.permissionNode();
                 data.set(purchasedKey, PersistentDataType.STRING, newVal);
             }
-            player.sendMessage("§aPurchased and granted permission: " + rule.permissionNode);
+            player.sendMessage("§aPurchased and granted permission: " + rule.permissionNode());
 
             // If temporary, schedule revoke
-            if (rule.durationSeconds > 0) {
-                long ticks = rule.durationSeconds * 20L;
+            if (rule.durationSeconds() > 0) {
+                long ticks = rule.durationSeconds() * 20L;
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     try {
-                        permission.playerRemove(player, rule.permissionNode);
-                        player.sendMessage("§eYour permission " + rule.permissionNode + " has expired.");
+                        permission.playerRemove(player, rule.permissionNode());
+                        player.sendMessage("§eYour permission " + rule.permissionNode() + " has expired.");
                     } catch (Exception ignored) {}
                 }, ticks);
             }
