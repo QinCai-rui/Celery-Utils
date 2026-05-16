@@ -222,8 +222,8 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         if (!isEnabled()) return;
         Player player = event.getPlayer();
         if (checkedPlayers.contains(player.getName())) return;
-        
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
             checkPlayerBalance(player);
             checkedPlayers.add(player.getName());
         });
@@ -234,8 +234,8 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
      */
     public void runPeriodicCheck() {
         if (!isEnabled()) return;
-        
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+
+        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 checkPlayerBalance(player);
             }
