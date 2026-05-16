@@ -7,10 +7,14 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import xyz.qincai.celeryutils.api.CeleryModule;
 import xyz.qincai.celeryutils.modules.DiscordLinkModule;
 import xyz.qincai.celeryutils.modules.DiscordWhitelistChannelModule;
 import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
+import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,10 +30,11 @@ import java.util.logging.Level;
 /**
  * Main plugin class for CeleryUtils.
  */
-public class CeleryUtils extends JavaPlugin {
+public class CeleryUtils extends JavaPlugin implements Listener {
 
     private static CeleryUtils instance;
     private final Map<String, CeleryModule> modules = new HashMap<>();
+    private UpdateChecker updateChecker;
 
     @Override
     public void onEnable() {
@@ -48,6 +53,10 @@ public class CeleryUtils extends JavaPlugin {
         upgradeConfig("modules/discord-link/config.yml", new File(getDataFolder(), "modules/discord-link/config.yml"), "Discord Link module config");
         upgradeConfig("modules/discord-whitelist-channel/config.yml", new File(getDataFolder(), "modules/discord-whitelist-channel/config.yml"), "Discord Whitelist Channel module config");
         upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
+
+        updateChecker = new UpdateChecker(this);
+        updateChecker.start();
+        getServer().getPluginManager().registerEvents(this, this);
 
         initializeModules();
 
@@ -192,6 +201,9 @@ public class CeleryUtils extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (updateChecker != null) {
+            updateChecker.stop();
+        }
         for (CeleryModule module : modules.values()) {
             try {
                 module.disable();
@@ -242,6 +254,13 @@ public class CeleryUtils extends JavaPlugin {
 
     public Map<String, CeleryModule> getModules() {
         return new HashMap<>(modules);
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (updateChecker != null) {
+            updateChecker.notifyIfUpdateAvailable(event.getPlayer());
+        }
     }
 
     public static CeleryUtils getInstance() {

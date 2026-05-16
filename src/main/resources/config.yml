@@ -1,10 +1,20 @@
 # CeleryUtils Configuration
 # Global settings and module enable flags
 
-config-version: 1.0
+config-version: 1.1
 
 global:
   debug: false
+
+update-checker:
+  enabled: true
+  auto-download: true
+  notify-on-join: true
+  notify-permission: "celeryutils.update"
+  notify-ops-without-permission: true
+  interval-minutes: 60
+  api-url: "https://api.github.com/repos/QinCai-rui/Celery-Utils/releases/latest"
+  timeout-millis: 10000
 
 # Enable/disable modules here. Module-specific config files live under /modules/<module>/config.yml
 modules:
