@@ -11,5 +11,7 @@ global:
 modules:
   discord-link:
     enabled: true
+  discord-whitelist-channel:
+    enabled: false
   economy-permissions:
     enabled: true

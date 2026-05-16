@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import xyz.qincai.celeryutils.api.CeleryModule;
 import xyz.qincai.celeryutils.modules.DiscordLinkModule;
+import xyz.qincai.celeryutils.modules.DiscordWhitelistChannelModule;
 import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
 
 import java.util.HashMap;
@@ -45,6 +46,7 @@ public class CeleryUtils extends JavaPlugin {
 
         upgradeConfig("config.yml", new File(getDataFolder(), "config.yml"), "main config");
         upgradeConfig("modules/discord-link/config.yml", new File(getDataFolder(), "modules/discord-link/config.yml"), "Discord Link module config");
+        upgradeConfig("modules/discord-whitelist-channel/config.yml", new File(getDataFolder(), "modules/discord-whitelist-channel/config.yml"), "Discord Whitelist Channel module config");
         upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
 
         initializeModules();
@@ -210,6 +212,16 @@ public class CeleryUtils extends JavaPlugin {
                 getLogger().info("✓ Loaded module: " + linkModule.getName());
             } else {
                 getLogger().warning("✗ Failed to load module: " + linkModule.getName());
+            }
+        }
+
+        if (getConfig().getBoolean("modules.discord-whitelist-channel.enabled", false)) {
+            CeleryModule whitelistModule = new DiscordWhitelistChannelModule(this);
+            if (whitelistModule.initialize()) {
+                modules.put(whitelistModule.getName(), whitelistModule);
+                getLogger().info("✓ Loaded module: " + whitelistModule.getName());
+            } else {
+                getLogger().warning("✗ Failed to load module: " + whitelistModule.getName());
             }
         }
 

@@ -1,0 +1,18 @@
+# Discord Whitelist Channel module configuration
+config-version: 1.0
+
+# Discord bot token for the whitelist bot
+bot-token: "YOUR_DISCORD_BOT_TOKEN_HERE"
+
+# Discord channel ID where the bot will listen for whitelist requests
+channel-id: 0
+
+# Maximum number of players a single Discord user can whitelist (default: 1)
+max-players-per-user: 1
+
+# Role requirement configuration
+role-requirement:
+  # Set to true if only users with a specific role can use this feature
+  enabled: false
+  # Discord role ID (set enabled to true to use this)
+  role-id: ""
