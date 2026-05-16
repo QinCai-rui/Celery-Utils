@@ -3,6 +3,7 @@ package xyz.qincai.celeryutils.modules;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -180,9 +181,9 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
 
         // Add reaction based on success
         if (whitelistedCount > 0) {
-            message.addReaction("✅").queue();
+            message.addReaction(Emoji.fromUnicode("✅")).queue();
         } else {
-            message.addReaction("⚠️").queue();
+            message.addReaction(Emoji.fromUnicode("⚠️")).queue();
         }
     }
 
