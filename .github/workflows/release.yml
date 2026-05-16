@@ -47,6 +47,6 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           gh release create "${VERSION}" \
-            target/CeleryUtils.jar \
+            target/CeleryUtils-${VERSION}.jar \
             --title "${VERSION}" \
             --generate-notes
