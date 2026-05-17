@@ -359,72 +359,6 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§cUnknown action: " + subAction + ". Use buy or list.");
                 return true;
             }
-            case "setprice" -> {
-                if (!sender.hasPermission("celeryutils.admin")) {
-                    sender.sendMessage("§cYou do not have permission to use this command.");
-                    return true;
-                }
-                if (args.length < 3) {
-                    sender.sendMessage("§cUsage: §f/cu setprice <rule> <price>");
-                    return true;
-                }
-
-                String ruleKey = args[1];
-                double price;
-                try {
-                    price = Double.parseDouble(args[2]);
-                } catch (NumberFormatException e) {
-                    sender.sendMessage("§cInvalid price: " + args[2]);
-                    return true;
-                }
-
-                CeleryModule modPrice = getModule("Economy Permissions");
-                if (modPrice == null || !modPrice.isEnabled()) {
-                    sender.sendMessage("§cEconomy Permissions module is not available.");
-                    return true;
-                }
-
-                EconomyPermissionsModule econPrice = (EconomyPermissionsModule) modPrice;
-                if (econPrice.setRulePrice(ruleKey, price)) {
-                    sender.sendMessage("§aSet price for " + ruleKey + " to " + price);
-                } else {
-                    sender.sendMessage("§cFailed to set price (unknown rule)");
-                }
-                return true;
-            }
-            case "setduration" -> {
-                if (!sender.hasPermission("celeryutils.admin")) {
-                    sender.sendMessage("§cYou do not have permission to use this command.");
-                    return true;
-                }
-                if (args.length < 3) {
-                    sender.sendMessage("§cUsage: §f/cu setduration <rule> <seconds>");
-                    return true;
-                }
-
-                String ruleKey = args[1];
-                long seconds;
-                try {
-                    seconds = Long.parseLong(args[2]);
-                } catch (NumberFormatException e) {
-                    sender.sendMessage("§cInvalid seconds: " + args[2]);
-                    return true;
-                }
-
-                CeleryModule modDur = getModule("Economy Permissions");
-                if (modDur == null || !modDur.isEnabled()) {
-                    sender.sendMessage("§cEconomy Permissions module is not available.");
-                    return true;
-                }
-
-                EconomyPermissionsModule econDur = (EconomyPermissionsModule) modDur;
-                if (econDur.setRuleDuration(ruleKey, seconds)) {
-                    sender.sendMessage("§aSet duration for " + ruleKey + " to " + seconds + " seconds");
-                } else {
-                    sender.sendMessage("§cFailed to set duration (unknown rule)");
-                }
-                return true;
-            }
             case "update" -> {
                 if (!sender.hasPermission("celeryutils.admin")) {
                     sender.sendMessage("§cYou do not have permission to use this command.");
@@ -467,7 +401,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         if (sender.hasPermission("celeryutils.admin")) {
             sender.sendMessage("§f/cu update §7- §7Check for plugin updates");
         }
-        sender.sendMessage("§7For more details use §b/cu help [link|ecoperm|admin]§7.");
+        sender.sendMessage("§7For more details use §b/cu help [link|ecoperm|whitelist|admin]§7.");
     }
 
     private void sendHelpTopic(CommandSender sender, String topic) {
@@ -479,13 +413,18 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§7Step 2: Send code to Discord bot's DM");
                 sender.sendMessage("§7Your Discord nickname will sync with your Minecraft name.");
             }
+            case "whitelist" -> {
+                sender.sendMessage("§b§lCeleryUtils §7- §fDiscord Whitelist Help");
+                sender.sendMessage("§7This module automatically whitelists players who send their");
+                sender.sendMessage("§7usernames in the configured Discord channel.");
+            }
             case "ecoperm", "economy", "perm", "permissions" -> {
                 sender.sendMessage("§b§lCeleryUtils §7- §fEconomy Permissions Help");
                 sender.sendMessage("§f/cu ecoperm list §7- §7View available permission rules");
                 sender.sendMessage("§f/cu ecoperm buy <rule> §7- §7Purchase a permission group");
                 if (sender.hasPermission("celeryutils.admin")) {
-                    sender.sendMessage("§c[Admin] §f/cu setprice <rule> <price>");
-                    sender.sendMessage("§c[Admin] §f/cu setduration <rule> <seconds>");
+                    // Config handles pricing and duration
+                    sender.sendMessage("§cPrices and durations can be configured in config.yml.");
                 }
             }
             case "status", "version" -> {
@@ -495,8 +434,6 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             case "admin" -> {
                 if (sender.hasPermission("celeryutils.admin")) {
                     sender.sendMessage("§b§lCeleryUtils §7- §fAdmin Help");
-                    sender.sendMessage("§f/cu setprice <rule> <price> §7- §7Set rule cost");
-                    sender.sendMessage("§f/cu setduration <rule> <sec> §7- §7Set rule time");
                     sender.sendMessage("§f/cu status §7- §7View module loading states");
                     sender.sendMessage("§f/cu update §7- §7Force check for updates");
                 } else {

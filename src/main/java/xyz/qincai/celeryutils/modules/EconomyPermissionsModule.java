@@ -193,29 +193,6 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         }
     }
 
-    public boolean setRulePrice(String ruleKey, double price) {
-        EconomyPermissionRule rule = rules.get(ruleKey);
-        if (rule == null) return false;
-        rules.put(ruleKey, rule.withPrice(price));
-        // Persist to module config
-        File cfgFile = new File(plugin.getDataFolder(), "modules/economy-permissions/config.yml");
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(cfgFile);
-        cfg.set("rules." + ruleKey + ".price", price);
-        try { cfg.save(cfgFile); } catch (Exception e) { plugin.getLogger().warning("Failed to save config: " + e.getMessage()); }
-        return true;
-    }
-
-    public boolean setRuleDuration(String ruleKey, long durationSeconds) {
-        EconomyPermissionRule rule = rules.get(ruleKey);
-        if (rule == null) return false;
-        rules.put(ruleKey, rule.withDuration(durationSeconds));
-        File cfgFile = new File(plugin.getDataFolder(), "modules/economy-permissions/config.yml");
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(cfgFile);
-        cfg.set("rules." + ruleKey + ".duration-seconds", durationSeconds);
-        try { cfg.save(cfgFile); } catch (Exception e) { plugin.getLogger().warning("Failed to save config: " + e.getMessage()); }
-        return true;
-    }
-
     /**
      * Checks player balance against rules on join
      */
