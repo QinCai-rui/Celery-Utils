@@ -425,6 +425,17 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 }
                 return true;
             }
+            case "update" -> {
+                if (!sender.hasPermission("celeryutils.admin")) {
+                    sender.sendMessage("§cYou do not have permission to use this command.");
+                    return true;
+                }
+                sender.sendMessage("§b§lCeleryUtils §7- §fUpdate Checker");
+                sender.sendMessage("§7Current status: §f" + updateChecker.statusSummary());
+                sender.sendMessage("§7Pinging for new updates...");
+                updateChecker.runCheckAsync();
+                return true;
+            }
             default -> {
                 sender.sendMessage("§cUnknown subcommand. Use /celeryutils help");
                 return true;
@@ -453,6 +464,9 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         sender.sendMessage("§f/cu status §7- §7Check module health and version");
         sender.sendMessage("§f/cu link §7- §7Link Minecraft with Discord");
         sender.sendMessage("§f/cu ecoperm §7- §7Economy Permissions menu");
+        if (sender.hasPermission("celeryutils.admin")) {
+            sender.sendMessage("§f/cu update §7- §7Check for plugin updates");
+        }
         sender.sendMessage("§7For more details use §b/cu help [link|ecoperm|admin]§7.");
     }
 
@@ -484,6 +498,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                     sender.sendMessage("§f/cu setprice <rule> <price> §7- §7Set rule cost");
                     sender.sendMessage("§f/cu setduration <rule> <sec> §7- §7Set rule time");
                     sender.sendMessage("§f/cu status §7- §7View module loading states");
+                    sender.sendMessage("§f/cu update §7- §7Force check for updates");
                 } else {
                     sender.sendMessage("§cYou don't have permission for admin help.");
                 }
