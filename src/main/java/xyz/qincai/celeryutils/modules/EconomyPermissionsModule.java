@@ -123,8 +123,10 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 double price = rulesSection.getDouble(key + ".price", 0.0);
                 long durationSeconds = rulesSection.getLong(key + ".duration-seconds", 0L);
                 String description = rulesSection.getString(key + ".description", "No description provided.");
+                String server = rulesSection.getString(key + ".server");
+                String world = rulesSection.getString(key + ".world");
                 if (permissionNode != null) {
-                    rules.put(key, new EconomyPermissionRule(minBalance, permissionNode, revoke, autoGrant, buyable, price, durationSeconds, description));
+                    rules.put(key, new EconomyPermissionRule(minBalance, permissionNode, revoke, autoGrant, buyable, price, durationSeconds, description, server, world));
                 }
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to load rule: " + key);
@@ -162,7 +164,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 return false;
             }
             // Grant permission
-            permission.playerAdd(player, rule.permissionNode());            
+            permission.playerAdd(rule.world(), player, rule.permissionNode());            
             // Mark as purchased to prevent balance-based revocation
             PersistentDataContainer data = player.getPersistentDataContainer();
             String currentPurchased = data.getOrDefault(purchasedKey, PersistentDataType.STRING, "");
@@ -177,7 +179,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 long ticks = rule.durationSeconds() * 20L;
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     try {
-                        permission.playerRemove(player, rule.permissionNode());
+                        permission.playerRemove(rule.world(), player, rule.permissionNode());
                         player.sendMessage("§eYour permission " + rule.permissionNode() + " has expired.");
                     } catch (Exception ignored) {}
                 }, ticks);
@@ -255,17 +257,17 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
 
         for (Map.Entry<String, EconomyPermissionRule> entry : rules.entrySet()) {
             EconomyPermissionRule rule = entry.getValue();
-            boolean hasPerm = permission.playerHas(player, rule.permissionNode());
+            boolean hasPerm = permission.playerHas(rule.world(), player, rule.permissionNode());
             boolean isPurchased = purchasedList.contains(rule.permissionNode());
             
             if (balance >= rule.minBalance()) {
                 if (!hasPerm && rule.autoGrant()) {
-                    permission.playerAdd(player, rule.permissionNode());
+                    permission.playerAdd(rule.world(), player, rule.permissionNode());
                 }
             } else {
                 // Only revoke if they haven't explicitly purchased it
                 if (hasPerm && rule.revokeOnBalanceBelow() && !isPurchased) {
-                    permission.playerRemove(player, rule.permissionNode());
+                    permission.playerRemove(rule.world(), player, rule.permissionNode());
                 }
             }
         }
@@ -279,8 +281,8 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
      */
     private void createDefaultRules() {
         plugin.getLogger().info("Creating default economy permission rules...");
-        rules.put("vip", new EconomyPermissionRule(1000.0, "group.vip", true, true, false, 0.0, 0L, "VIP status based on balance"));
-        rules.put("premium", new EconomyPermissionRule(5000.0, "group.premium", true, true, false, 0.0, 0L, "Premium status based on balance"));
+        rules.put("vip", new EconomyPermissionRule(1000.0, "group.vip", true, true, false, 0.0, 0L, "VIP status based on balance", null, null));
+        rules.put("premium", new EconomyPermissionRule(5000.0, "group.premium", true, true, false, 0.0, 0L, "Premium status based on balance", null, null));
     }
 
     /**

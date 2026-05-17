@@ -7,6 +7,10 @@ rules:
     min-balance: 1000.0
     # The permission node to grant the user
     permission: "essentials.enderchest"
+    # OPTIONAL: Contexts for the permission (supported by some permission plugins like LuckPerms via Vault)
+    # If not specified, it uses global context.
+    # server: "proxy"
+    # world: "world"
     # Whether to automatically grant this permission for free when balance >= min-balance.
     # Note: If auto-granted for free, it may be revoked if balance drops (see below).
     auto-grant: false

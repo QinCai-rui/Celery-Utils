@@ -12,13 +12,15 @@ public record EconomyPermissionRule(
         boolean buyable,
         double price,
         long durationSeconds,
-        String description
+        String description,
+        String server,
+        String world
 ) {
     public EconomyPermissionRule withPrice(double newPrice) {
-        return new EconomyPermissionRule(minBalance, permissionNode, revokeOnBalanceBelow, autoGrant, buyable, newPrice, durationSeconds, description);
+        return new EconomyPermissionRule(minBalance, permissionNode, revokeOnBalanceBelow, autoGrant, buyable, newPrice, durationSeconds, description, server, world);
     }
 
     public EconomyPermissionRule withDuration(long newDuration) {
-        return new EconomyPermissionRule(minBalance, permissionNode, revokeOnBalanceBelow, autoGrant, buyable, price, newDuration, description);
+        return new EconomyPermissionRule(minBalance, permissionNode, revokeOnBalanceBelow, autoGrant, buyable, price, newDuration, description, server, world);
     }
 }
