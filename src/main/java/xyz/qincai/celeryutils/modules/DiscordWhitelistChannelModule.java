@@ -106,6 +106,12 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         enabled = false;
         if (jda != null) {
             jda.shutdown();
+            try {
+                jda.awaitStatus(JDA.Status.SHUTDOWN);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                jda.shutdownNow();
+            }
         }
     }
 

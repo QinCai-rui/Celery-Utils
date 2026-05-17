@@ -117,6 +117,12 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
         enabled = false;
         if (jda != null) {
             jda.shutdown();
+            try {
+                jda.awaitStatus(JDA.Status.SHUTDOWN);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                jda.shutdownNow();
+            }
         }
     }
 
