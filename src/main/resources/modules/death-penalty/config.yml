@@ -1,0 +1,34 @@
+# Death Penalty Module Configuration
+# Makes players "pay" for dying by losing experience and/or money. Requires Vault Economy for economy penalties.
+
+# NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
+# SERVER ADMIN: do not touch
+config-version: 1.0
+
+# Permission node that bypasses death penalty
+bypass-permission: "celeryutils.deathpenalty.bypass"
+
+penalties:
+  # Experience penalty configuration
+  experience:
+    # Enable/disable experience penalty
+    enabled: true
+    # If use-percentage is false, players lose this many levels per death
+    flat-amount: 3
+    # If use-percentage is true, players lose this percentage of their current levels per death
+    percentage: 20.0
+    # Set to true to use percentage-based penalty, false for flat amount
+    use-percentage: true
+  
+  # Economy penalty configuration (requires Vault Economy)
+  economy:
+    # Enable/disable economy penalty
+    enabled: true
+    # Penalty is calculated as a percentage of player's current balance
+    percentage: 20.0
+    # Minimum penalty floor: penalty cannot be less than this amount
+    # Set to 0 to have no minimum floor
+    min-floor: 500.0
+    # Maximum penalty cap: penalty cannot exceed this amount
+    # Set to 0 to have no maximum cap
+    max-cap: 0.0

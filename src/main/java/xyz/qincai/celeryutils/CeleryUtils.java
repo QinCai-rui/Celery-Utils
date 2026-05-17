@@ -14,6 +14,7 @@ import xyz.qincai.celeryutils.api.CeleryModule;
 import xyz.qincai.celeryutils.modules.DiscordLinkModule;
 import xyz.qincai.celeryutils.modules.DiscordWhitelistChannelModule;
 import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
+import xyz.qincai.celeryutils.modules.DeathPenaltyModule;
 import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 
 import java.util.HashMap;
@@ -53,6 +54,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/discord-link/config.yml", new File(getDataFolder(), "modules/discord-link/config.yml"), "Discord Link module config");
         upgradeConfig("modules/discord-whitelist-channel/config.yml", new File(getDataFolder(), "modules/discord-whitelist-channel/config.yml"), "Discord Whitelist Channel module config");
         upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
+        upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
 
         updateChecker = new UpdateChecker(this);
         updateChecker.start();
@@ -244,6 +246,16 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 getLogger().info("✓ Loaded module: " + economyModule.getName());
             } else {
                 getLogger().warning("✗ Failed to load module: " + economyModule.getName());
+            }
+        }
+
+        if (getConfig().getBoolean("modules.death-penalty.enabled", true)) {
+            CeleryModule deathPenaltyModule = new DeathPenaltyModule(this);
+            if (deathPenaltyModule.initialize()) {
+                modules.put(deathPenaltyModule.getName(), deathPenaltyModule);
+                getLogger().info("✓ Loaded module: " + deathPenaltyModule.getName());
+            } else {
+                getLogger().warning("✗ Failed to load module: " + deathPenaltyModule.getName());
             }
         }
     }

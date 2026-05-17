@@ -1,4 +1,7 @@
 # Discord Whitelist Channel module configuration
+
+# NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
+# SERVER ADMIN: do not touch
 config-version: 1.0
 
 # Discord bot token for the whitelist bot

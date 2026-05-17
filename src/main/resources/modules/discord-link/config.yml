@@ -1,5 +1,9 @@
 # Discord Link module defaults
+
+# NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
+# SERVER ADMIN: do not touch
 config-version: 1.0
+
 bot-token: "YOUR_DISCORD_BOT_TOKEN_HERE"
 # Replace with your guild/server ID
 guild-id: 12345678901234567890

@@ -1,7 +1,9 @@
 # CeleryUtils Configuration
 # Global settings and module enable flags
 
-config-version: 1.1
+# NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
+# SERVER ADMIN: do not touch
+config-version: 1.2
 
 global:
   debug: false
@@ -23,4 +25,6 @@ modules:
   discord-whitelist-channel:
     enabled: false
   economy-permissions:
+    enabled: true
+  death-penalty:
     enabled: true
