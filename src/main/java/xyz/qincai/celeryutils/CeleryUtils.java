@@ -281,11 +281,11 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         String subcommand = args[0].toLowerCase();
         switch (subcommand) {
             case "status" -> {
-                sender.sendMessage("§6=== CeleryUtils Status ===");
+                sender.sendMessage("§b§lCeleryUtils §7- §fStatus");
                 sender.sendMessage("§fVersion: §a" + getDescription().getVersion());
                 sender.sendMessage("§fLoaded Modules: §a" + modules.size());
                 for (CeleryModule module : modules.values()) {
-                    sender.sendMessage("  § - " + module.getName() + " §f[" + (module.isEnabled() ? "§aENABLED" : "§cDISABLED") + "§f]");
+                    sender.sendMessage("  §7- §f" + module.getName() + " §7[" + (module.isEnabled() ? "§aENABLED" : "§cDISABLED") + "§7]");
                 }
                 return true;
             }
@@ -320,7 +320,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
             case "ecoperm" -> {
                 if (args.length < 2) {
-                    sender.sendMessage("§cUsage: /celeryutils ecoperm <buy|list> [rule]");
+                    sender.sendMessage("§cUsage: §f/cu ecoperm <buy|list> [rule]");
                     return true;
                 }
 
@@ -348,7 +348,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                         return true;
                     }
                     if (args.length < 3) {
-                        sender.sendMessage("§cUsage: /celeryutils ecoperm buy <rule>");
+                        sender.sendMessage("§cUsage: §f/cu ecoperm buy <rule>");
                         return true;
                     }
 
@@ -365,7 +365,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                     return true;
                 }
                 if (args.length < 3) {
-                    sender.sendMessage("§cUsage: /celeryutils setprice <rule> <price>");
+                    sender.sendMessage("§cUsage: §f/cu setprice <rule> <price>");
                     return true;
                 }
 
@@ -398,7 +398,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                     return true;
                 }
                 if (args.length < 3) {
-                    sender.sendMessage("§cUsage: /celeryutils setduration <rule> <seconds>");
+                    sender.sendMessage("§cUsage: §f/cu setduration <rule> <seconds>");
                     return true;
                 }
 
@@ -489,12 +489,12 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 }
             }
             case "status", "version" -> {
-                sender.sendMessage("§b§lCeleryUtils §7- §fHelp: Status");
+                sender.sendMessage("§b§lCeleryUtils §7- §fStatus Help");
                 sender.sendMessage("§f/cu status §7- §7Shows version, loaded modules, and status.");
             }
             case "admin" -> {
                 if (sender.hasPermission("celeryutils.admin")) {
-                    sender.sendMessage("§b§lCeleryUtils §7- §fHelp: Admin");
+                    sender.sendMessage("§b§lCeleryUtils §7- §fAdmin Help");
                     sender.sendMessage("§f/cu setprice <rule> <price> §7- §7Set rule cost");
                     sender.sendMessage("§f/cu setduration <rule> <sec> §7- §7Set rule time");
                     sender.sendMessage("§f/cu status §7- §7View module loading states");

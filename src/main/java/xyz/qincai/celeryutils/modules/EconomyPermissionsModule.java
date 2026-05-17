@@ -289,17 +289,17 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
      * Lists all available permission tiers to a player
      */
     public void listPermissions(Player player) {
-        player.sendMessage("§6§lAvailable Permission Tiers:");
+        player.sendMessage("§b§lCeleryUtils §7- §fAvailable Permission Tiers");
         for (Map.Entry<String, EconomyPermissionRule> entry : rules.entrySet()) {
             String key = entry.getKey();
             EconomyPermissionRule rule = entry.getValue();
-            player.sendMessage("§e- §b" + key + " §7(" + rule.permissionNode() + ")");
-            player.sendMessage("  §fDescription: §7" + rule.description());
+            player.sendMessage("  §7- §b" + key + " §7(" + rule.permissionNode() + ")");
+            player.sendMessage("    §fDescription: §7" + rule.description());
             if (rule.buyable()) {
-                player.sendMessage("  §fPrice: §a$" + rule.price());
+                player.sendMessage("    §fPrice: §a$" + rule.price());
             }
             if (rule.minBalance() > 0) {
-                player.sendMessage("  §fRequirement: §e$" + rule.minBalance() + " balance");
+                player.sendMessage("    §fRequirement: §e$" + rule.minBalance() + " balance");
             }
         }
     }
