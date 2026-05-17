@@ -448,39 +448,45 @@ public class CeleryUtils extends JavaPlugin implements Listener {
     }
 
     private void sendHelp(CommandSender sender, int page) {
-        switch (page) {
-            case 1 -> {
-                sender.sendMessage("§6=== CeleryUtils Help 1/3 ===");
-                sender.sendMessage("§f/celeryutils status §7- Show loaded modules");
-                sender.sendMessage("§f/celeryutils link §7- Start Discord linking with a 6-digit code");
-                sender.sendMessage("§f/celeryutils help 2 §7- Discord Link help");
-                sender.sendMessage("§f/celeryutils help 3 §7- Economy Permissions help");
-            }
-            case 2 -> {
-                sender.sendMessage("§6=== CeleryUtils Help 2/3 ===");
-                sender.sendMessage("§f/celeryutils link §7- Generate a 6-digit code in game");
-                sender.sendMessage("§7Send that code to the Discord bot in DM or the configured channel.");
-                sender.sendMessage("§7Once verified, your Discord nickname syncs to your Minecraft name.");
-                sender.sendMessage("§f/celeryutils help link §7- Show this page");
-            }
-            case 3 -> {
-                sender.sendMessage("§6=== CeleryUtils Help 3/3 ===");
-                sender.sendMessage("§f/celeryutils ecoperm list §7- List purchasable permissions");
-                sender.sendMessage("§f/celeryutils ecoperm buy <rule> §7- Buy a permission rule");
-                sender.sendMessage("§f/celeryutils setprice <rule> <price> §7- Change a rule price");
-                sender.sendMessage("§f/celeryutils setduration <rule> <seconds> §7- Change a rule duration");
-            }
-            default -> sender.sendMessage("§cHelp page not found. Use /celeryutils help 1-3 or /celeryutils help link.");
-        }
+        sender.sendMessage("§b§lCeleryUtils §7- §fGlobal Commands");
+        sender.sendMessage("§f/cu help §7[topic] - §7Show specific help info");
+        sender.sendMessage("§f/cu status §7- §7Check module health and version");
+        sender.sendMessage("§f/cu link §7- §7Link Minecraft with Discord");
+        sender.sendMessage("§f/cu ecoperm §7- §7Economy Permissions menu");
+        sender.sendMessage("§7For more details use §b/cu help [link|ecoperm|admin]§7.");
     }
 
     private void sendHelpTopic(CommandSender sender, String topic) {
-        switch (topic) {
-            case "link" -> sendHelp(sender, 2);
-            case "ecoperm", "economy", "permissions" -> sendHelp(sender, 3);
-            case "status" -> {
-                sender.sendMessage("§6=== CeleryUtils Help: Status ===");
-                sender.sendMessage("§f/celeryutils status §7- Show which modules are loaded and enabled");
+        switch (topic.toLowerCase()) {
+            case "link", "discord" -> {
+                sender.sendMessage("§b§lCeleryUtils §7- §fDiscord Link Help");
+                sender.sendMessage("§f/cu link §7- §7Generates a one-time 6-digit sync code");
+                sender.sendMessage("§7Step 1: Get code with §f/cu link");
+                sender.sendMessage("§7Step 2: Send code to Discord bot's DM");
+                sender.sendMessage("§7Your Discord nickname will sync with your Minecraft name.");
+            }
+            case "ecoperm", "economy", "perm", "permissions" -> {
+                sender.sendMessage("§b§lCeleryUtils §7- §fEconomy Permissions Help");
+                sender.sendMessage("§f/cu ecoperm list §7- §7View available permission rules");
+                sender.sendMessage("§f/cu ecoperm buy <rule> §7- §7Purchase a permission group");
+                if (sender.hasPermission("celeryutils.admin")) {
+                    sender.sendMessage("§c[Admin] §f/cu setprice <rule> <price>");
+                    sender.sendMessage("§c[Admin] §f/cu setduration <rule> <seconds>");
+                }
+            }
+            case "status", "version" -> {
+                sender.sendMessage("§b§lCeleryUtils §7- §fHelp: Status");
+                sender.sendMessage("§f/cu status §7- §7Shows version, loaded modules, and status.");
+            }
+            case "admin" -> {
+                if (sender.hasPermission("celeryutils.admin")) {
+                    sender.sendMessage("§b§lCeleryUtils §7- §fHelp: Admin");
+                    sender.sendMessage("§f/cu setprice <rule> <price> §7- §7Set rule cost");
+                    sender.sendMessage("§f/cu setduration <rule> <sec> §7- §7Set rule time");
+                    sender.sendMessage("§f/cu status §7- §7View module loading states");
+                } else {
+                    sender.sendMessage("§cYou don't have permission for admin help.");
+                }
             }
             default -> sendHelp(sender, 1);
         }
