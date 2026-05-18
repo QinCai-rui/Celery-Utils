@@ -189,8 +189,8 @@ public class DeathPenaltyModule implements CeleryModule, Listener {
                 penaltyAmount = Math.min(economyMinFloor, balance);
             }
             
-            // Apply ceiling (maximum)
-            if (penaltyAmount > economyMaxCap) {
+            // Apply ceiling only when a positive cap is configured
+            if (economyMaxCap > 0 && penaltyAmount > economyMaxCap) {
                 penaltyAmount = economyMaxCap;
             }
             
