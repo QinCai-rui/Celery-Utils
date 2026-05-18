@@ -23,6 +23,7 @@ This plugin has a modular design that allows for specific modules to be enabled 
 - **Death Penalty**: applies configurable penalties on death, such as item loss or economy deductions. Useful for servers with `keepInventory` on to add consequences to dying.
 
 ## HOW TO - server admins
+
 1. Place the plugin JAR, downloaded from [the releases page](https://github.com/QinCai-rui/Celery-Utils/releases/latest), in your server `plugins/` folder and start the server *once* to generate config files.
 2. Open `plugins/CeleryUtils/config.yml` and edit the module settings you want enabled.
 3. Configure each module under `plugins/CeleryUtils/modules/` if needed, then restart the server, or run `/celeryutils reload` in-game or in the console to apply changes without restarting (experimental).
@@ -31,6 +32,7 @@ This plugin has a modular design that allows for specific modules to be enabled 
 6. Use `/celeryutils help` in-game for command usage and more details on each module's features.
 
 ## HOW TO - players
+
 1. Use the commands provided by the enabled modules, such as `/cu link` for the Discord Link module, to access features.
 
 WIP: more detailed player instructions
