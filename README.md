@@ -1,6 +1,6 @@
 # Celery-Utils
 
-Utility plugin for Minecraft Servers and SMPs
+A modular Minecraft plugin for PaperMC servers / SMPs with optional server-side features that can be enabled or disabled independently.
 
 ## Build
 
@@ -13,10 +13,11 @@ mvn -B -ntp package
 
 ## Features
 
-Modular design that allows for specific modules to be enabled or disabled as needed
+This plugin has a modular design that allows for specific modules to be enabled or disabled as needed
 
 ### Modules
 
-- **Discord Link**: generates a 6-digit code in Minecraft and links the account to Discord so nicknames can stay in sync.
-
-- **Economy Permissions**: allows permissions to be granted based on a player's balance in the economy or be purchased using the economy.
+- **Discord Link**: generates a 6-digit code in Minecraft and links the account to Discord so nicknames stay in sync.
+- **Discord Whitelist Channel**: manages Minecraft server whitelist requests through a Discord channel.
+- **Economy Permissions**: grants permissions based on a player's balance or lets permissions be purchased using the economy.
+- **Death Penalty**: applies configurable penalties on death, such as item loss or economy deductions. Useful for servers with `keepInventory` on to add consequences to dying.
