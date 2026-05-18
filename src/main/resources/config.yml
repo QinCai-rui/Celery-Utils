@@ -21,10 +21,10 @@ update-checker:
 # Enable/disable modules here. Module-specific config files live under /modules/<module>/config.yml
 modules:
   discord-link:
-    enabled: true
+    enabled: false
   discord-whitelist-channel:
     enabled: false
   economy-permissions:
-    enabled: true
+    enabled: false
   death-penalty:
-    enabled: true
+    enabled: false
