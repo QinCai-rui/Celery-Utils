@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import org.bukkit.Bukkit;
+import org.bukkit.event.HandlerList;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -113,6 +114,11 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                 jda.shutdownNow();
             }
         }
+        try {
+            HandlerList.unregisterAll(this);
+        } catch (Exception ignored) {}
+
+        userWhitelistCount.clear();
     }
 
     @Override

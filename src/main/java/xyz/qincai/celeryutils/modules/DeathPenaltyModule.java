@@ -2,6 +2,7 @@ package xyz.qincai.celeryutils.modules;
 
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.event.HandlerList;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -81,6 +82,11 @@ public class DeathPenaltyModule implements CeleryModule, Listener {
     @Override
     public void disable() {
         enabled = false;
+        try {
+            HandlerList.unregisterAll(this);
+        } catch (Exception ignored) {}
+
+        economy = null;
     }
     
     @Override

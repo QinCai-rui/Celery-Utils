@@ -3,6 +3,8 @@ package xyz.qincai.celeryutils.modules;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
+import org.bukkit.event.HandlerList;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -34,6 +36,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     private final Map<String, EconomyPermissionRule> rules = new HashMap<>();
     private final Set<String> checkedPlayers = Collections.synchronizedSet(new HashSet<>());
     private final NamespacedKey purchasedKey;
+    private final List<BukkitTask> revokeTasks = Collections.synchronizedList(new ArrayList<>());
     
     public EconomyPermissionsModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -91,6 +94,23 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     @Override
     public void disable() {
         enabled = false;
+        try {
+            HandlerList.unregisterAll(this);
+        } catch (Exception ignored) {}
+
+        // Cancel any scheduled revoke tasks
+        try {
+            for (BukkitTask task : revokeTasks) {
+                if (task != null) task.cancel();
+            }
+            revokeTasks.clear();
+        } catch (Exception ignored) {}
+
+        // Clear internal state
+        rules.clear();
+        checkedPlayers.clear();
+        economy = null;
+        permission = null;
     }
     
     @Override
@@ -177,12 +197,13 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
             // If temporary, schedule revoke
             if (rule.durationSeconds() > 0) {
                 long ticks = rule.durationSeconds() * 20L;
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     try {
                         permission.playerRemove(rule.world(), player, rule.permissionNode());
                         player.sendMessage("§eYour permission " + rule.permissionNode() + " has expired.");
                     } catch (Exception ignored) {}
                 }, ticks);
+                revokeTasks.add(task);
             }
             return true;
 

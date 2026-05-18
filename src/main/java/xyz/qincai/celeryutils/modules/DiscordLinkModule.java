@@ -10,6 +10,8 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import org.bukkit.Bukkit;
+import org.bukkit.event.HandlerList;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -50,6 +52,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
     private boolean enabled = false;
     private File configFile;
     private FileConfiguration moduleConfig;
+    private BukkitTask cleanupTask;
     private long guildId;
     private boolean acceptDirectMessages;
     private boolean acceptConfiguredChannel;
@@ -100,7 +103,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                     .build();
 
             Bukkit.getPluginManager().registerEvents(this, plugin);
-            Bukkit.getScheduler().runTaskTimer(plugin, this::cleanupExpiredRequests, 20L * 30, 20L * 30);
+            cleanupTask = Bukkit.getScheduler().runTaskTimer(plugin, this::cleanupExpiredRequests, 20L * 30, 20L * 30);
 
             jda.awaitReady();
             enabled = true;
@@ -124,6 +127,23 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                 jda.shutdownNow();
             }
         }
+        // Cancel scheduled cleanup task
+        try {
+            if (cleanupTask != null) {
+                cleanupTask.cancel();
+                cleanupTask = null;
+            }
+        } catch (Exception ignored) {}
+
+        // Unregister any Bukkit event listeners and clear memory
+        try {
+            HandlerList.unregisterAll(this);
+        } catch (Exception ignored) {}
+
+        pendingRequestsByCode.clear();
+        pendingCodeByPlayer.clear();
+        linkedAccountsByUuid.clear();
+        legacyLinksByDiscordId.clear();
     }
 
     @Override
