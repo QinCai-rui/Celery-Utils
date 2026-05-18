@@ -382,6 +382,15 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 updateChecker.runCheckAsync();
                 return true;
             }
+            case "reload" -> {
+                if (!sender.hasPermission("celeryutils.admin")) {
+                    sender.sendMessage("§cYou do not have permission to use this command.");
+                    return true;
+                }
+                sender.sendMessage("§b§lCeleryUtils §7- §fReloading configs and modules...");
+                reloadConfigsAndModules(sender);
+                return true;
+            }
             default -> {
                 sender.sendMessage("§cUnknown subcommand. Use /celeryutils help");
                 return true;
@@ -395,6 +404,119 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             return linkModule;
         }
         return null;
+    }
+
+    private void reloadConfigsAndModules(CommandSender sender) {
+        try {
+            // Reload main config
+            reloadConfig();
+
+            // Ensure module configs are present/merged with defaults
+            upgradeConfig("config.yml", new File(getDataFolder(), "config.yml"), "main config");
+            upgradeConfig("modules/discord-link/config.yml", new File(getDataFolder(), "modules/discord-link/config.yml"), "Discord Link module config");
+            upgradeConfig("modules/discord-whitelist-channel/config.yml", new File(getDataFolder(), "modules/discord-whitelist-channel/config.yml"), "Discord Whitelist Channel module config");
+            upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
+            upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
+
+            // Determine desired enabled state from config
+            boolean wantDiscord = isModuleEnabled("modules.discord-link.enabled", "modules.discord-sync.enabled");
+            boolean wantWhitelist = getConfig().getBoolean("modules.discord-whitelist-channel.enabled", false);
+            boolean wantEcon = getConfig().getBoolean("modules.economy-permissions.enabled", true);
+            boolean wantDeath = getConfig().getBoolean("modules.death-penalty.enabled", true);
+
+            // Discord Link
+            CeleryModule discord = getModule("Discord Link");
+            if (!wantDiscord) {
+                if (discord != null) {
+                    try { discord.disable(); } catch (Exception ignored) {}
+                    modules.remove("Discord Link");
+                    getLogger().info("Disabled module: Discord Link");
+                }
+            } else {
+                if (discord != null) {
+                    try { discord.disable(); } catch (Exception ignored) {}
+                    modules.remove("Discord Link");
+                }
+                CeleryModule linkModule = new DiscordLinkModule(this);
+                if (linkModule.initialize()) {
+                    modules.put(linkModule.getName(), linkModule);
+                    getLogger().info("✓ Loaded module: " + linkModule.getName());
+                } else {
+                    getLogger().warning("✗ Failed to load module: " + linkModule.getName());
+                }
+            }
+
+            // Discord Whitelist Channel
+            CeleryModule whitelist = getModule("Discord Whitelist Channel");
+            if (!wantWhitelist) {
+                if (whitelist != null) {
+                    try { whitelist.disable(); } catch (Exception ignored) {}
+                    modules.remove("Discord Whitelist Channel");
+                    getLogger().info("Disabled module: Discord Whitelist Channel");
+                }
+            } else {
+                if (whitelist != null) {
+                    try { whitelist.disable(); } catch (Exception ignored) {}
+                    modules.remove("Discord Whitelist Channel");
+                }
+                CeleryModule wlModule = new DiscordWhitelistChannelModule(this);
+                if (wlModule.initialize()) {
+                    modules.put(wlModule.getName(), wlModule);
+                    getLogger().info("✓ Loaded module: " + wlModule.getName());
+                } else {
+                    getLogger().warning("✗ Failed to load module: " + wlModule.getName());
+                }
+            }
+
+            // Economy Permissions
+            CeleryModule econ = getModule("Economy Permissions");
+            if (!wantEcon) {
+                if (econ != null) {
+                    try { econ.disable(); } catch (Exception ignored) {}
+                    modules.remove("Economy Permissions");
+                    getLogger().info("Disabled module: Economy Permissions");
+                }
+            } else {
+                if (econ != null) {
+                    try { econ.disable(); } catch (Exception ignored) {}
+                    modules.remove("Economy Permissions");
+                }
+                CeleryModule econModule = new EconomyPermissionsModule(this);
+                if (econModule.initialize()) {
+                    modules.put(econModule.getName(), econModule);
+                    getLogger().info("✓ Loaded module: " + econModule.getName());
+                } else {
+                    getLogger().warning("✗ Failed to load module: " + econModule.getName());
+                }
+            }
+
+            // Death Penalty
+            CeleryModule death = getModule("Death Penalty");
+            if (!wantDeath) {
+                if (death != null) {
+                    try { death.disable(); } catch (Exception ignored) {}
+                    modules.remove("Death Penalty");
+                    getLogger().info("Disabled module: Death Penalty");
+                }
+            } else {
+                if (death != null) {
+                    try { death.disable(); } catch (Exception ignored) {}
+                    modules.remove("Death Penalty");
+                }
+                CeleryModule deathModule = new DeathPenaltyModule(this);
+                if (deathModule.initialize()) {
+                    modules.put(deathModule.getName(), deathModule);
+                    getLogger().info("✓ Loaded module: " + deathModule.getName());
+                } else {
+                    getLogger().warning("✗ Failed to load module: " + deathModule.getName());
+                }
+            }
+
+            sender.sendMessage("§aReload complete.");
+        } catch (Exception e) {
+            sender.sendMessage("§cFailed to reload configs/modules: " + e.getMessage());
+            getLogger().log(Level.WARNING, "Failed to reload configs/modules", e);
+        }
     }
 
     private boolean isModuleEnabled(String primaryKey, String legacyKey) {
@@ -412,6 +534,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         sender.sendMessage("§f/cu ecoperm §7- §7Economy Permissions menu");
         if (sender.hasPermission("celeryutils.admin")) {
             sender.sendMessage("§f/cu update §7- §7Check for plugin updates");
+            sender.sendMessage("§f/cu reload §7- §7Reload configs and (re)load modules if changed");
         }
         sender.sendMessage("§7For more details use §b/cu help [link|ecoperm|whitelist|admin]§7.");
     }
@@ -448,6 +571,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                     sender.sendMessage("§b§lCeleryUtils §7- §fAdmin Help");
                     sender.sendMessage("§f/cu status §7- §7View module loading states");
                     sender.sendMessage("§f/cu update §7- §7Force check for updates");
+                    sender.sendMessage("§f/cu reload §7- §7Reload configs and (re)load modules if changed");
                 } else {
                     sender.sendMessage("§cYou don't have permission for admin help.");
                 }
