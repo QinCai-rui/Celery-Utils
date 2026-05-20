@@ -199,72 +199,33 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
 
     private String executeWhitelistCommand(String username) {
         try {
-            // Get whitelist state before
-            Set<String> whitelistBefore = new HashSet<>(getWhitelistedPlayers());
-            
-            // Execute the whitelist add command synchronously on the main thread
+            // Retrieve OfflinePlayer on the current JDA thread context.
+            // Bukkit.getOfflinePlayer performs a Mojang API lookup which will block.
+            // Doing it here off the main thread avoids server lag!
+            org.bukkit.OfflinePlayer player = Bukkit.getOfflinePlayer(username);
+
+            if (player.isWhitelisted()) {
+                return "Player is already whitelisted";
+            }
+
+            // Execute the actual state change safely on the main thread
             try {
                 Bukkit.getScheduler().callSyncMethod(plugin, () -> {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "whitelist add " + username);
+                    player.setWhitelisted(true);
                     return null;
                 }).get();
+                return "Added " + username + " to whitelist";
             } catch (ExecutionException e) {
-                plugin.getLogger().log(Level.WARNING, "Failed to execute whitelist command", e);
+                plugin.getLogger().log(Level.WARNING, "Failed to execute whitelist API call", e);
                 return "Error executing command";
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return "Command was interrupted";
             }
-
-            // Wait a bit for the whitelist.json to be written
-            Thread.sleep(200);
-
-            // Get whitelist state after
-            Set<String> whitelistAfter = new HashSet<>(getWhitelistedPlayers());
-
-            // Check if the player was added
-            if (whitelistAfter.contains(username.toLowerCase())) {
-                if (whitelistBefore.contains(username.toLowerCase())) {
-                    return "Player is already whitelisted";
-                }
-                return "Added " + username + " to whitelist";
-            }
-
-            return "Failed to add player to whitelist";
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            plugin.getLogger().log(Level.WARNING, "Whitelist command interrupted for player: " + username, e);
-            return "Error: Command interrupted";
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING, "Failed to whitelist player: " + username, e);
             return "Error: " + e.getMessage();
         }
-    }
-
-    private Set<String> getWhitelistedPlayers() {
-        Set<String> whitelistedPlayers = new HashSet<>();
-        try {
-            File whitelistFile = new File(Bukkit.getWorldContainer(), "whitelist.json");
-            
-            if (!whitelistFile.exists()) {
-                return whitelistedPlayers;
-            }
-
-            // Simple JSON parsing to extract usernames
-            // Since we don't have a JSON library readily available, we'll use a simple approach
-            String content = new String(java.nio.file.Files.readAllBytes(whitelistFile.toPath()));
-            
-            // Extract usernames from JSON format: "name":"username"
-            Pattern namePattern = Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"");
-            Matcher matcher = namePattern.matcher(content);
-            
-            while (matcher.find()) {
-                whitelistedPlayers.add(matcher.group(1).toLowerCase());
-            }
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to read whitelist.json", e);
-        }
-        return whitelistedPlayers;
     }
 
     private void loadSettings(FileConfiguration config) {
