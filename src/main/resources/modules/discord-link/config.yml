@@ -36,6 +36,3 @@ messages:
 
 # Successful links are stored here by Discord ID.
 links: {}
-
-# Legacy support for old username-based mappings.
-mappings: {}

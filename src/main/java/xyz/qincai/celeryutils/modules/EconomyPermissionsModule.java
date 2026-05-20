@@ -122,14 +122,6 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         return enabled && economy != null && permission != null;
     }
     
-    /**
-     * Loads permission rules from config
-     */
-    private void loadPermissionRules() {
-        // legacy fallback (shouldn't be used now)
-        createDefaultRules();
-    }
-
     private void loadPermissionRulesFromConfig(FileConfiguration cfg) {
         rules.clear();
         ConfigurationSection rulesSection = cfg.getConfigurationSection("rules");

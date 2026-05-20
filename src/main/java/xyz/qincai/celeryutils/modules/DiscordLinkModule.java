@@ -39,15 +39,12 @@ import java.util.logging.Level;
 public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, Listener {
 
     private static final String NEW_CONFIG_PATH = "modules/discord-link/config.yml";
-    private static final String LEGACY_CONFIG_PATH = "modules/discord-sync/config.yml";
 
     private final CeleryUtils plugin;
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, LinkRequest> pendingRequestsByCode = new ConcurrentHashMap<>();
     private final Map<UUID, String> pendingCodeByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, LinkedAccount> linkedAccountsByUuid = new ConcurrentHashMap<>();
-    private final Map<Long, String> legacyLinksByDiscordId = new ConcurrentHashMap<>();
-    private final Map<String, Long> legacyLinksByPlayerName = new ConcurrentHashMap<>();
 
     private JDA jda;
     private boolean enabled = false;
@@ -152,8 +149,6 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
         pendingRequestsByCode.clear();
         pendingCodeByPlayer.clear();
         linkedAccountsByUuid.clear();
-        legacyLinksByDiscordId.clear();
-        legacyLinksByPlayerName.clear();
     }
 
     @Override
@@ -274,17 +269,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
     }
 
     private File resolveConfigFile() {
-        File newConfig = new File(plugin.getDataFolder(), NEW_CONFIG_PATH);
-        if (newConfig.exists()) {
-            return newConfig;
-        }
-
-        File legacyConfig = new File(plugin.getDataFolder(), LEGACY_CONFIG_PATH);
-        if (legacyConfig.exists()) {
-            return legacyConfig;
-        }
-
-        return newConfig;
+        return new File(plugin.getDataFolder(), NEW_CONFIG_PATH);
     }
 
     private void loadSettings(FileConfiguration cfg) {
@@ -301,8 +286,6 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
 
     private void loadPersistedLinks(FileConfiguration cfg) {
         linkedAccountsByUuid.clear();
-        legacyLinksByDiscordId.clear();
-        legacyLinksByPlayerName.clear();
 
         ConfigurationSection links = cfg.getConfigurationSection("links");
         if (links != null) {
@@ -312,10 +295,6 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                     String uuidText = links.getString(key + ".minecraft-uuid", "");
                     String minecraftName = links.getString(key + ".minecraft-name", "");
                     if (uuidText.isBlank()) {
-                        if (!minecraftName.isBlank()) {
-                            legacyLinksByDiscordId.put(discordId, minecraftName);
-                            legacyLinksByPlayerName.put(minecraftName.toLowerCase(), discordId);
-                        }
                         continue;
                     }
 
@@ -323,23 +302,6 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                     linkedAccountsByUuid.put(minecraftUuid, new LinkedAccount(discordId, minecraftUuid, minecraftName));
                 } catch (Exception e) {
                     plugin.getLogger().warning("Skipping invalid Discord link entry: " + key);
-                }
-            }
-        }
-
-        ConfigurationSection legacyMappings = cfg.getConfigurationSection("mappings");
-        if (legacyMappings != null) {
-            for (String key : legacyMappings.getKeys(false)) {
-                try {
-                    long discordId = Long.parseLong(key);
-                    String minecraftName = legacyMappings.getString(key, "");
-                    if (!minecraftName.isBlank()) {
-                        if (legacyLinksByDiscordId.putIfAbsent(discordId, minecraftName) == null) {
-                            legacyLinksByPlayerName.put(minecraftName.toLowerCase(), discordId);
-                        }
-                    }
-                } catch (Exception e) {
-                    plugin.getLogger().warning("Skipping invalid legacy mapping entry: " + key);
                 }
             }
         }
@@ -363,18 +325,8 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
         }
 
         long discordId = event.getAuthor().getIdLong();
-        LinkedAccount previous = linkedAccountsByUuid.put(request.playerUuid(),
+        linkedAccountsByUuid.put(request.playerUuid(),
                 new LinkedAccount(discordId, request.playerUuid(), request.playerName()));
-
-        if (previous != null && previous.discordId() != discordId) {
-            legacyLinksByDiscordId.remove(previous.discordId());
-            legacyLinksByPlayerName.remove(previous.minecraftName().toLowerCase());
-        }
-
-        String legacyName = legacyLinksByDiscordId.remove(discordId);
-        if (legacyName != null) {
-            legacyLinksByPlayerName.remove(legacyName.toLowerCase());
-        }
 
         saveLinkToConfig(discordId, request.playerUuid(), request.playerName());
 
@@ -487,11 +439,6 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
         LinkedAccount account = linkedAccountsByUuid.get(minecraftUuid);
         if (account != null) {
             return account.discordId();
-        }
-
-        Long legacyId = legacyLinksByPlayerName.get(playerName.toLowerCase());
-        if (legacyId != null) {
-            return legacyId;
         }
 
         return 0L;
