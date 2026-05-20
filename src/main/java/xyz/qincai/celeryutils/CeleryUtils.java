@@ -65,32 +65,6 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         getLogger().info("CeleryUtils enabled successfully!");
     }
 
-    private void saveModuleResource(String resourcePath) {
-        try {
-            if ("modules/discord-link/config.yml".equals(resourcePath)) {
-                java.io.File legacyFile = new java.io.File(getDataFolder(), "modules/discord-sync/config.yml");
-                java.io.File newFile = new java.io.File(getDataFolder(), resourcePath);
-                if (!newFile.exists() && legacyFile.exists()) {
-                    return;
-                }
-            }
-
-            java.io.File outFile = new java.io.File(getDataFolder(), resourcePath);
-            if (outFile.exists()) {
-                return;
-            }
-
-            java.io.File parent = outFile.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
-            }
-
-            saveResource(resourcePath, false);
-        } catch (Exception ignored) {
-            getLogger().warning("Failed to save module resource: " + resourcePath);
-        }
-    }
-
     private void upgradeConfig(String resourcePath, File targetFile, String label) {
         try {
             File legacyTarget = null;
