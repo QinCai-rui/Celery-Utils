@@ -34,9 +34,9 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     private Permission permission;
     private boolean enabled = false;
     private final Map<String, EconomyPermissionRule> rules = new HashMap<>();
-    private final Set<String> checkedPlayers = Collections.synchronizedSet(new HashSet<>());
     private final NamespacedKey purchasedKey;
-    private final List<BukkitTask> revokeTasks = Collections.synchronizedList(new ArrayList<>());
+    private final Map<Integer, BukkitTask> revokeTasks = new java.util.concurrent.ConcurrentHashMap<>();
+    private BukkitTask periodicCheckTask;
     
     public EconomyPermissionsModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -82,6 +82,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
             Bukkit.getPluginManager().registerEvents(this, plugin);
             
             enabled = true;
+            runPeriodicCheck(); // Start periodic balance checking
             plugin.getLogger().info("Economy Permissions module initialized!");
             return true;
             
@@ -100,7 +101,11 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
 
         // Cancel any scheduled revoke tasks
         try {
-            for (BukkitTask task : revokeTasks) {
+            if (periodicCheckTask != null) {
+                periodicCheckTask.cancel();
+                periodicCheckTask = null;
+            }
+            for (BukkitTask task : revokeTasks.values()) {
                 if (task != null) task.cancel();
             }
             revokeTasks.clear();
@@ -108,7 +113,6 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
 
         // Clear internal state
         rules.clear();
-        checkedPlayers.clear();
         economy = null;
         permission = null;
     }
@@ -197,13 +201,17 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
             // If temporary, schedule revoke
             if (rule.durationSeconds() > 0) {
                 long ticks = rule.durationSeconds() * 20L;
-                BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    try {
-                        permission.playerRemove(rule.world(), player, rule.permissionNode());
-                        player.sendMessage("§eYour permission " + rule.permissionNode() + " has expired.");
-                    } catch (Exception ignored) {}
-                }, ticks);
-                revokeTasks.add(task);
+                BukkitTask task = new org.bukkit.scheduler.BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            permission.playerRemove(rule.world(), player, rule.permissionNode());
+                            player.sendMessage("§eYour permission " + rule.permissionNode() + " has expired.");
+                        } catch (Exception ignored) {}
+                        revokeTasks.remove(this.getTaskId());
+                    }
+                }.runTaskLater(plugin, ticks);
+                revokeTasks.put(task.getTaskId(), task);
             }
             return true;
 
@@ -221,11 +229,9 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         if (!isEnabled()) return;
         Player player = event.getPlayer();
-        if (checkedPlayers.contains(player.getName())) return;
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             checkPlayerBalance(player);
-            checkedPlayers.add(player.getName());
         });
     }
 
@@ -234,8 +240,9 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
      */
     public void runPeriodicCheck() {
         if (!isEnabled()) return;
+        if (periodicCheckTask != null) periodicCheckTask.cancel();
 
-        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        periodicCheckTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 checkPlayerBalance(player);
             }
