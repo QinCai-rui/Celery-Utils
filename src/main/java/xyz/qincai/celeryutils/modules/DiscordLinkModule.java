@@ -47,6 +47,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
     private final Map<UUID, String> pendingCodeByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, LinkedAccount> linkedAccountsByUuid = new ConcurrentHashMap<>();
     private final Map<Long, String> legacyLinksByDiscordId = new ConcurrentHashMap<>();
+    private final Map<String, Long> legacyLinksByPlayerName = new ConcurrentHashMap<>();
 
     private JDA jda;
     private boolean enabled = false;
@@ -91,26 +92,32 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                 return false;
             }
 
-            jda = JDABuilder.createDefault(token)
-                    .enableIntents(
-                            GatewayIntent.GUILD_MEMBERS,
-                            GatewayIntent.GUILD_MESSAGES,
-                            GatewayIntent.DIRECT_MESSAGES,
-                            GatewayIntent.MESSAGE_CONTENT
-                    )
-                    .setMemberCachePolicy(MemberCachePolicy.ALL)
-                    .addEventListeners(this)
-                    .build();
-
             Bukkit.getPluginManager().registerEvents(this, plugin);
             cleanupTask = Bukkit.getScheduler().runTaskTimer(plugin, this::cleanupExpiredRequests, 20L * 30, 20L * 30);
 
-            jda.awaitReady();
-            enabled = true;
-            plugin.getLogger().info("Connected Discord Link module successfully!");
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                try {
+                    jda = JDABuilder.createDefault(token)
+                            .enableIntents(
+                                    GatewayIntent.GUILD_MEMBERS,
+                                    GatewayIntent.GUILD_MESSAGES,
+                                    GatewayIntent.DIRECT_MESSAGES,
+                                    GatewayIntent.MESSAGE_CONTENT
+                            )
+                            .addEventListeners(this)
+                            .build();
+
+                    jda.awaitReady();
+                    enabled = true;
+                    plugin.getLogger().info("Connected Discord Link module successfully!");
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to initialize Discord Link bot", e);
+                }
+            });
+
             return true;
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to initialize Discord Link module", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to load Discord Link module config", e);
             return false;
         }
     }
@@ -146,6 +153,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
         pendingCodeByPlayer.clear();
         linkedAccountsByUuid.clear();
         legacyLinksByDiscordId.clear();
+        legacyLinksByPlayerName.clear();
     }
 
     @Override
@@ -294,6 +302,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
     private void loadPersistedLinks(FileConfiguration cfg) {
         linkedAccountsByUuid.clear();
         legacyLinksByDiscordId.clear();
+        legacyLinksByPlayerName.clear();
 
         ConfigurationSection links = cfg.getConfigurationSection("links");
         if (links != null) {
@@ -305,6 +314,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                     if (uuidText.isBlank()) {
                         if (!minecraftName.isBlank()) {
                             legacyLinksByDiscordId.put(discordId, minecraftName);
+                            legacyLinksByPlayerName.put(minecraftName.toLowerCase(), discordId);
                         }
                         continue;
                     }
@@ -324,7 +334,9 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                     long discordId = Long.parseLong(key);
                     String minecraftName = legacyMappings.getString(key, "");
                     if (!minecraftName.isBlank()) {
-                        legacyLinksByDiscordId.putIfAbsent(discordId, minecraftName);
+                        if (legacyLinksByDiscordId.putIfAbsent(discordId, minecraftName) == null) {
+                            legacyLinksByPlayerName.put(minecraftName.toLowerCase(), discordId);
+                        }
                     }
                 } catch (Exception e) {
                     plugin.getLogger().warning("Skipping invalid legacy mapping entry: " + key);
@@ -356,25 +368,30 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
 
         if (previous != null && previous.discordId() != discordId) {
             legacyLinksByDiscordId.remove(previous.discordId());
+            legacyLinksByPlayerName.remove(previous.minecraftName().toLowerCase());
         }
 
-        legacyLinksByDiscordId.remove(discordId);
+        String legacyName = legacyLinksByDiscordId.remove(discordId);
+        if (legacyName != null) {
+            legacyLinksByPlayerName.remove(legacyName.toLowerCase());
+        }
+
         saveLinkToConfig(discordId, request.playerUuid(), request.playerName());
 
         String successMessage = getMessage("messages.discord-linked",
                 "Linked Minecraft account %minecraft_name%.");
         event.getChannel().sendMessage(applyPlaceholders(successMessage, request.playerName(), code, discordId, 0L)).queue();
 
-        Player player = Bukkit.getPlayer(request.playerUuid());
-        if (player != null) {
-            Bukkit.getScheduler().runTask(plugin, () -> {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player player = Bukkit.getPlayer(request.playerUuid());
+            if (player != null) {
                 player.sendMessage(getMessage("messages.player-linked",
                         "§aYour Minecraft account is now linked to Discord."));
                 if (syncOnLink) {
                     syncPlayerNickname(player);
                 }
-            });
-        }
+            }
+        });
     }
 
     private void saveLinkToConfig(long discordId, UUID minecraftUuid, String minecraftName) {
@@ -382,15 +399,19 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
             return;
         }
 
-        moduleConfig.set("links." + discordId + ".minecraft-uuid", minecraftUuid.toString());
-        moduleConfig.set("links." + discordId + ".minecraft-name", minecraftName);
-        moduleConfig.set("links." + discordId + ".linked-at", System.currentTimeMillis());
-
-        try {
-            moduleConfig.save(configFile);
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to save Discord link config", e);
-        }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            synchronized (moduleConfig) {
+                moduleConfig.set("links." + discordId + ".minecraft-uuid", minecraftUuid.toString());
+                moduleConfig.set("links." + discordId + ".minecraft-name", minecraftName);
+                moduleConfig.set("links." + discordId + ".linked-at", System.currentTimeMillis());
+        
+                try {
+                    moduleConfig.save(configFile);
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to save Discord link config", e);
+                }
+            }
+        });
     }
 
     private void notifyPlayerExpired(UUID uuid) {
@@ -404,7 +425,7 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
     }
 
     private void sendLinkCodeToPlayer(Player player, String code, long expiresAtMillis) {
-        long minutes = Math.max(1L, (expiresAtMillis - System.currentTimeMillis() + 59999L) / 60000L);
+        long minutes = Math.max(1L, (expiresAtMillis - System.currentTimeMillis()) / 60000L);
         String message = getMessage("messages.player-code-issued",
                 "§aDiscord link code: §e%code% §7(Expires in %minutes% minute(s)). Send it to the Discord bot in DM or the configured channel.");
         player.sendMessage(applyPlaceholders(message, player.getName(), code, 0L, minutes));
@@ -412,27 +433,30 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
 
     private void cleanupExpiredRequests() {
         long now = System.currentTimeMillis();
-        List<String> expiredCodes = new ArrayList<>();
-
-        for (Map.Entry<String, LinkRequest> entry : pendingRequestsByCode.entrySet()) {
+        pendingRequestsByCode.entrySet().removeIf(entry -> {
             if (entry.getValue().expiresAtMillis() <= now) {
-                expiredCodes.add(entry.getKey());
+                pendingCodeByPlayer.remove(entry.getValue().playerUuid());
+                notifyPlayerExpired(entry.getValue().playerUuid());
+                return true;
             }
-        }
-
-        for (String code : expiredCodes) {
-            LinkRequest request = pendingRequestsByCode.remove(code);
-            if (request != null) {
-                pendingCodeByPlayer.remove(request.playerUuid());
-                notifyPlayerExpired(request.playerUuid());
-            }
-        }
+            return false;
+        });
     }
 
     private boolean isAcceptedChannel(MessageReceivedEvent event) {
         if (event.isFromGuild()) {
-            return acceptConfiguredChannel && configuredChannelId != 0L
-                    && event.getChannel().getIdLong() == configuredChannelId;
+            if (!acceptConfiguredChannel || configuredChannelId == 0L) {
+                return false;
+            }
+            long channelId = event.getChannel().getIdLong();
+            if (channelId == configuredChannelId) {
+                return true;
+            }
+            if (event.getChannelType().isThread()) {
+                net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel thread = event.getChannel().asThreadChannel();
+                return thread != null && thread.getParentChannel().getIdLong() == configuredChannelId;
+            }
+            return false;
         }
 
         return acceptDirectMessages;
@@ -443,9 +467,9 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
             return null;
         }
 
-        String trimmed = contentRaw.trim();
-        if (trimmed.matches("\\d{6}")) {
-            return trimmed;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{6})").matcher(contentRaw);
+        if (m.find()) {
+            return m.group(1);
         }
 
         return null;
@@ -465,10 +489,9 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
             return account.discordId();
         }
 
-        for (Map.Entry<Long, String> entry : legacyLinksByDiscordId.entrySet()) {
-            if (entry.getValue().equalsIgnoreCase(playerName)) {
-                return entry.getKey();
-            }
+        Long legacyId = legacyLinksByPlayerName.get(playerName.toLowerCase());
+        if (legacyId != null) {
+            return legacyId;
         }
 
         return 0L;
