@@ -16,6 +16,9 @@ commands:
     description: Main command for CeleryUtils
     usage: /celeryutils <subcommand>
     aliases: [cu]
+  pvp:
+    description: Toggle PvP loadout or manage gear
+    usage: /pvp <toggle|gear>
 
 permissions:
   celeryutils.admin:

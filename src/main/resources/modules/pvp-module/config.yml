@@ -1,0 +1,30 @@
+# PvP Module Configuration
+config-version: 1.0
+
+options:
+  # The size of the PvP Gear GUI (multiples of 9, max 54)
+  gui-size: 54
+  gui-title: "&c&lPvP Loadout"
+
+  # Death mechanics during PvP
+  # Valid options: KEEP_EVERYTHING, DROP_ORIGINAL, DROP_DUPLICATE
+  #
+  # KEEP_EVERYTHING: No items are dropped. Player respawns with their PvP gear, and original items remain safe.
+  # This ensures no items are dropped at all. The player respawns with their duplicates, 
+  # and their stored "real" items stay locked in the plugin's memory.
+  #
+  # DROP_ORIGINAL: The killer loots the "Original" items from your PvP Vault.
+  # This is the highest stakes: Killer gets your items at the durability they were 
+  # when you stored them (usually 100%). Your active gear vanishes.
+  #
+  # DROP_DUPLICATE: The killer loots the "Duplicate" items you are currently wearing.
+  # Killer gets the gear in its current damaged state. Your vault is still wiped to prevent farming.
+  # Safe-stored items (the ones they were carrying before toggling) remain safe in both DROP modes.
+  death-mechanic: "KEEP_EVERYTHING" 
+
+messages:
+  toggled-on: "&aYou have entered PvP mode. Your normal inventory is stored securely."
+  toggled-off: "&cYou have exited PvP mode. Your normal inventory has been returned."
+  cannot-toggle-in-combat: "&cYou cannot toggle PvP mode while in combat!"
+  gui-opened: "&eModify your PvP loadout here. These items will be given to you when PvP is toggled on."
+  no-permission: "&cYou do not have permission to use this command."
