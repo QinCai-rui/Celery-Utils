@@ -54,7 +54,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
 
     @Override
     public String getName() {
-        return "PvP-Module";
+        return "pvp-module";
     }
 
     @Override
@@ -153,6 +153,10 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
 
     private void openGearGUI(Player player) {
         int guiSize = config.getInt("options.gui-size", 54);
+        if (guiSize < 9 || guiSize > 54 || guiSize % 9 != 0) {
+            plugin.getLogger().warning("Invalid gui-size: " + guiSize + " for PvP Loadout. Must be a multiple of 9 and between 9 and 54. Defaulting to 54.");
+            guiSize = 54;
+        }
         String title = ChatColor.translateAlternateColorCodes('&', config.getString("options.gui-title", "&c&lPvP Loadout"));
         
         Inventory gui = Bukkit.createInventory(player, guiSize, title);
@@ -207,14 +211,15 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         if (loadoutsConfig.contains(path)) {
             List<?> list = loadoutsConfig.getList(path);
             if (list != null) {
-                for (Object obj : list) {
+                for (int i = 0; i < list.size(); i++) {
+                    Object obj = list.get(i);
                     if (obj instanceof ItemStack) {
                         ItemStack item = ((ItemStack) obj).clone();
                         
                         // Tag as PvP item
                         ItemMeta meta = item.getItemMeta();
                         if (meta != null) {
-                            meta.getPersistentDataContainer().set(pvpItemKey, PersistentDataType.BYTE, (byte) 1);
+                            meta.getPersistentDataContainer().set(pvpItemKey, PersistentDataType.INTEGER, i);
                             item.setItemMeta(meta);
                         }
                         
@@ -255,7 +260,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
             List<?> rawList = loadoutsConfig.getList(path);
             if (rawList != null) {
                 List<ItemStack> updatedLoadout = new ArrayList<>();
-                for (Object obj : rawList) {
+                for (int i = 0; i < rawList.size(); i++) {
+                    Object obj = rawList.get(i);
                     if (!(obj instanceof ItemStack)) {
                         updatedLoadout.add(null);
                         continue;
@@ -263,7 +269,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                     ItemStack original = (ItemStack) obj;
                     
                     // Does the player still have a duplicate of this?
-                    ItemStack duplicate = findDuplicate(player, original);
+                    ItemStack duplicate = findDuplicate(player, original, i);
                     if (duplicate != null) {
                         // They still have it! 
                         updatedLoadout.add(original);
@@ -278,8 +284,9 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
             }
         }
 
-        // Collect any non-PvP items they picked up
-        for (ItemStack item : player.getInventory().getContents()) {
+        // Collect any non-PvP items they picked up (check whole inventory including armor/offhand)
+        for (int i = 0; i < player.getInventory().getSize(); i++) {
+            ItemStack item = player.getInventory().getItem(i);
             if (item != null && item.getType() != Material.AIR && !isPvPItem(item)) {
                 pickUps.add(item);
             }
@@ -314,16 +321,24 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
     }
 
     private boolean isPvPItem(ItemStack item) {
-        return item != null && item.hasItemMeta() && 
-               item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE);
+        if (item == null || !item.hasItemMeta()) return false;
+        return item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE) || 
+               item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.INTEGER);
     }
 
-    private ItemStack findDuplicate(Player player, ItemStack original) {
-        for (ItemStack item : player.getInventory().getContents()) {
+    private ItemStack findDuplicate(Player player, ItemStack original, int originalIndex) {
+        for (int i = 0; i < player.getInventory().getSize(); i++) {
+            ItemStack item = player.getInventory().getItem(i);
             if (item == null) continue;
-            if (isPvPItem(item) && item.getType() == original.getType()) {
-                // Simplified comparison for performance
-                return item;
+            if (item.hasItemMeta()) {
+                Integer index = item.getItemMeta().getPersistentDataContainer().get(pvpItemKey, PersistentDataType.INTEGER);
+                if (index != null && index == originalIndex) {
+                    return item;
+                } else if (item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE)) {
+                    if (item.getType() == original.getType()) {
+                        return item;
+                    }
+                }
             }
         }
         return null;
@@ -368,6 +383,13 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                     event.setCancelled(true);
                 }
             }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        if (activePvpPlayers.contains(event.getPlayer().getUniqueId())) {
+            untogglePvP(event.getPlayer());
         }
     }
 
