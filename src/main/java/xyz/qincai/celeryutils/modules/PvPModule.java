@@ -378,9 +378,12 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
             
             // Check for hotbar swaps
             if (event.getAction() == org.bukkit.event.inventory.InventoryAction.HOTBAR_SWAP || event.getAction() == org.bukkit.event.inventory.InventoryAction.HOTBAR_MOVE_AND_READD) {
-                ItemStack hotbarItem = event.getWhoClicked().getInventory().getItem(event.getHotbarButton());
-                if (hotbarItem != null && hotbarItem.hasItemMeta() && hotbarItem.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE)) {
-                    event.setCancelled(true);
+                int hotbarButton = event.getHotbarButton();
+                if (hotbarButton >= 0) {
+                    ItemStack hotbarItem = event.getWhoClicked().getInventory().getItem(hotbarButton);
+                    if (hotbarItem != null && hotbarItem.hasItemMeta() && hotbarItem.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE)) {
+                        event.setCancelled(true);
+                    }
                 }
             }
         }
