@@ -106,13 +106,12 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         enabled = false;
         if (jda != null) {
             try {
-                if (jda.getStatus() == JDA.Status.SHUTDOWN || jda.getStatus() == JDA.Status.SHUTTING_DOWN) {
-                    jda.shutdownNow();
-                } else {
-                    jda.shutdown();
-                }
-            } catch (Exception e) {
                 jda.shutdownNow();
+                jda.awaitStatus(JDA.Status.SHUTDOWN);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                // Ignore
             }
         }
         // JDA shutdown above; this class does not register Bukkit listeners so nothing to unregister
