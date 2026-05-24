@@ -202,7 +202,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         // Save original inventory
         originalInventories.put(uuid, player.getInventory().getContents().clone());
         originalArmor.put(uuid, player.getInventory().getArmorContents().clone());
-        originalOffhand.put(uuid, player.getInventory().getItemInOffHand().clone());
+        ItemStack offhand = player.getInventory().getItemInOffHand();
+        originalOffhand.put(uuid, offhand != null ? offhand.clone() : null);
         
         player.getInventory().clear();
         
@@ -392,7 +393,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
     @EventHandler
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         ItemStack item = event.getItemDrop().getItemStack();
-        if (item.hasItemMeta() && item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE)) {
+        if (isPvPItem(item)) {
             // Can't drop PvP tracked items or they might get exploited
             event.setCancelled(true);
             event.getPlayer().sendMessage(ChatColor.RED + "You cannot drop PvP loadout items!");
@@ -412,7 +413,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                 // Killer loots the damaged duplicates. Strip the PvP tag so they can be picked up.
                 for (ItemStack drop : event.getDrops()) {
                     if (isPvPItem(drop)) {
-             sPvPItem(item
+                        ItemMeta meta = drop.getItemMeta();
                         meta.getPersistentDataContainer().remove(pvpItemKey);
                         drop.setItemMeta(meta);
                     }
