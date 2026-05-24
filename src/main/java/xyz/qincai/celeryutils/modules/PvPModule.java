@@ -252,43 +252,48 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         
         List<ItemStack> pickUps = new ArrayList<>();
         
-        // Better approach: Check each item in the saved loadout. 
-        // If a duplicate of it exists in the current inventory, we "keep" that loadout slot.
-        // If not, that specific item in the loadout is LOST (broken or dropped).
         String path = "loadouts." + uuid;
         if (loadoutsConfig.contains(path)) {
             List<?> rawList = loadoutsConfig.getList(path);
             if (rawList != null) {
-                List<ItemStack> updatedLoadout = new ArrayList<>();
-                for (int i = 0; i < rawList.size(); i++) {
-                    Object obj = rawList.get(i);
-                    if (!(obj instanceof ItemStack)) {
-                        updatedLoadout.add(null);
-                        continue;
-                    }
-                    ItemStack original = (ItemStack) obj;
+                ItemStack[] updatedLoadout = new ItemStack[rawList.size()];
+                
+                List<ItemStack> allItems = new ArrayList<>();
+                for (ItemStack item : player.getInventory().getContents()) if (item != null) allItems.add(item);
+                for (ItemStack item : player.getInventory().getArmorContents()) if (item != null) allItems.add(item);
+                if (player.getInventory().getItemInOffHand() != null) allItems.add(player.getInventory().getItemInOffHand());
+                
+                for (ItemStack item : allItems) {
+                    if (item.getType() == Material.AIR) continue;
                     
-                    // Does the player still have a duplicate of this?
-                    ItemStack duplicate = findDuplicate(player, original, i);
-                    if (duplicate != null) {
-                        // They still have it! 
-                        updatedLoadout.add(original);
-                        removeOne(player.getInventory(), duplicate);
+                    if (isPvPItem(item)) {
+                        Integer index = item.getItemMeta().getPersistentDataContainer().get(pvpItemKey, PersistentDataType.INTEGER);
+                        if (index != null && index >= 0 && index < updatedLoadout.length) {
+                            if (updatedLoadout[index] == null) {
+                                updatedLoadout[index] = item.clone();
+                            } else {
+                                int newAmount = updatedLoadout[index].getAmount() + item.getAmount();
+                                updatedLoadout[index].setAmount(Math.min(newAmount, updatedLoadout[index].getMaxStackSize()));
+                            }
+                        }
                     } else {
-                        // They lost it (broke or dropped). Remove from stored loadout.
-                        updatedLoadout.add(null); 
+                        pickUps.add(item.clone());
                     }
                 }
-                loadoutsConfig.set(path, updatedLoadout);
+                
+                loadoutsConfig.set(path, Arrays.asList(updatedLoadout));
                 saveLoadouts();
             }
-        }
-
-        // Collect any non-PvP items they picked up (check whole inventory including armor/offhand)
-        for (int i = 0; i < player.getInventory().getSize(); i++) {
-            ItemStack item = player.getInventory().getItem(i);
-            if (item != null && item.getType() != Material.AIR && !isPvPItem(item)) {
-                pickUps.add(item);
+        } else {
+            List<ItemStack> allItems = new ArrayList<>();
+            for (ItemStack item : player.getInventory().getContents()) if (item != null) allItems.add(item);
+            for (ItemStack item : player.getInventory().getArmorContents()) if (item != null) allItems.add(item);
+            if (player.getInventory().getItemInOffHand() != null) allItems.add(player.getInventory().getItemInOffHand());
+            
+            for (ItemStack item : allItems) {
+                if (item.getType() != Material.AIR && !isPvPItem(item)) {
+                    pickUps.add(item.clone());
+                }
             }
         }
 
@@ -326,38 +331,6 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.INTEGER);
     }
 
-    private ItemStack findDuplicate(Player player, ItemStack original, int originalIndex) {
-        for (int i = 0; i < player.getInventory().getSize(); i++) {
-            ItemStack item = player.getInventory().getItem(i);
-            if (item == null) continue;
-            if (item.hasItemMeta()) {
-                Integer index = item.getItemMeta().getPersistentDataContainer().get(pvpItemKey, PersistentDataType.INTEGER);
-                if (index != null && index == originalIndex) {
-                    return item;
-                } else if (item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE)) {
-                    if (item.getType() == original.getType()) {
-                        return item;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private void removeOne(Inventory inv, ItemStack item) {
-        for (int i = 0; i < inv.getSize(); i++) {
-            ItemStack s = inv.getItem(i);
-            if (s != null && s.equals(item)) {
-                if (s.getAmount() > 1) {
-                    s.setAmount(s.getAmount() - 1);
-                } else {
-                    inv.setItem(i, null);
-                }
-                return;
-            }
-        }
-    }
-
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         // Prevent moving PvP items out of player inventory
@@ -367,8 +340,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
             ItemStack currentItem = event.getCurrentItem();
             ItemStack cursorItem = event.getCursor();
             
-            boolean currentIsPvP = currentItem != null && currentItem.hasItemMeta() && currentItem.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE);
-            boolean cursorIsPvP = cursorItem != null && cursorItem.hasItemMeta() && cursorItem.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE);
+            boolean currentIsPvP = isPvPItem(currentItem);
+            boolean cursorIsPvP = isPvPItem(cursorItem);
             
             // If they interact with top inventory using a PvP item (or hotbar switch)
             if (currentIsPvP || cursorIsPvP) {
@@ -381,10 +354,22 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                 int hotbarButton = event.getHotbarButton();
                 if (hotbarButton >= 0) {
                     ItemStack hotbarItem = event.getWhoClicked().getInventory().getItem(hotbarButton);
-                    if (hotbarItem != null && hotbarItem.hasItemMeta() && hotbarItem.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE)) {
+                    if (isPvPItem(hotbarItem)) {
                         event.setCancelled(true);
                     }
                 }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.PLAYER 
+                && event.getView().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
+            
+            ItemStack cursorItem = event.getOldCursor();
+            if (isPvPItem(cursorItem)) {
+                event.setCancelled(true);
             }
         }
     }
@@ -427,7 +412,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                 // Killer loots the damaged duplicates. Strip the PvP tag so they can be picked up.
                 for (ItemStack drop : event.getDrops()) {
                     if (isPvPItem(drop)) {
-                        ItemMeta meta = drop.getItemMeta();
+             sPvPItem(item
                         meta.getPersistentDataContainer().remove(pvpItemKey);
                         drop.setItemMeta(meta);
                     }
