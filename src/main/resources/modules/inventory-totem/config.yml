@@ -1,0 +1,14 @@
+# Inventory Totem Module Config
+# Allows players to use a Totem of Undying from anywhere in their inventory.
+
+# Required permission to use this feature (leave empty to not require a permission)
+permission-node: "celeryutils.totem"
+
+# Send a message to the player when their totem activates from the inventory?
+send-activation-message: true
+
+# The message to send to the player. Supports color codes (&).
+activation-message: "&aA Totem of Undying in your inventory saved your life!"
+
+# Whether to force play the vanilla totem resurrect effect.
+play-totem-effect: true

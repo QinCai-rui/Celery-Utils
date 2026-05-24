@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 1.3
+config-version: 1.4
 
 global:
   debug: false
@@ -27,6 +27,10 @@ modules:
   economy-permissions:
     enabled: false
   death-penalty:
+    enabled: false
+  pvp-module:
+    enabled: false
+  inventory-totem:
     enabled: false
   pvp-module:
     enabled: false

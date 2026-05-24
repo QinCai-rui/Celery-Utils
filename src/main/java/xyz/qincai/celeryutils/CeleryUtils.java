@@ -16,6 +16,7 @@ import xyz.qincai.celeryutils.modules.DiscordWhitelistChannelModule;
 import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
 import xyz.qincai.celeryutils.modules.DeathPenaltyModule;
 import xyz.qincai.celeryutils.modules.PvPModule;
+import xyz.qincai.celeryutils.modules.InventoryTotemModule;
 import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 
 import java.util.HashMap;
@@ -57,6 +58,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
         upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
         upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
+        upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
 
         updateChecker = new UpdateChecker(this);
         updateChecker.start();
@@ -242,6 +244,16 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 getLogger().info("✓ Loaded module: " + pvpModule.getName());
             } else {
                 getLogger().warning("✗ Failed to load module: " + pvpModule.getName());
+            }
+        }
+
+        if (getConfig().getBoolean("modules.inventory-totem.enabled", true)) {
+            CeleryModule totemModule = new InventoryTotemModule(this);
+            if (totemModule.initialize()) {
+                modules.put(totemModule.getName(), totemModule);
+                getLogger().info("✓ Loaded module: " + totemModule.getName());
+            } else {
+                getLogger().warning("✗ Failed to load module: " + totemModule.getName());
             }
         }
     }
