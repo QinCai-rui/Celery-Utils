@@ -19,8 +19,12 @@ commands:
   pvp:
     description: Toggle PvP loadout or manage gear
     usage: /pvp <toggle|gear>
+    permission: celeryutils.pvp
 
 permissions:
+  celeryutils.pvp:
+    description: Allow starting a PvP session
+    default: op
   celeryutils.admin:
     description: Admin access to CeleryUtils
     default: op

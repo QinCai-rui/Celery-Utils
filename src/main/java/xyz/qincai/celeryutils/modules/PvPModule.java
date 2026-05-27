@@ -46,6 +46,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
     private final Map<UUID, ItemStack> originalOffhand = new HashMap<>();
     
     private final Set<UUID> activePvpPlayers = new HashSet<>();
+    private final Map<UUID, Long> lastCombatTime = new HashMap<>();
     private NamespacedKey pvpItemKey;
 
     public PvPModule(CeleryUtils plugin) {
@@ -125,6 +126,16 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         }
 
         Player player = (Player) sender;
+        
+        if (!player.hasPermission("celeryutils.pvp")) {
+            player.sendMessage(ChatColor.translateAlternateColorCodes('&', config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
+            return true;
+        }
+
+        if (player.isDead()) {
+            player.sendMessage(ChatColor.RED + "You cannot do this while dead.");
+            return true;
+        }
 
         if (args.length == 0) {
             player.sendMessage(ChatColor.RED + "Usage: /pvp <gear|toggle>");
@@ -189,7 +200,11 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         
         List<ItemStack> items = new ArrayList<>();
         for (ItemStack item : gui.getContents()) {
-            items.add(item);
+            if (item == null || item.getType() == Material.AIR) {
+                items.add(new ItemStack(Material.AIR));
+            } else {
+                items.add(item);
+            }
         }
         
         loadoutsConfig.set("loadouts." + player.getUniqueId(), items);
@@ -198,6 +213,11 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
 
     private void togglePvP(Player player) {
         UUID uuid = player.getUniqueId();
+        
+        if (lastCombatTime.containsKey(uuid) && System.currentTimeMillis() - lastCombatTime.get(uuid) < 15000) {
+            player.sendMessage(ChatColor.translateAlternateColorCodes('&', config.getString("messages.cannot-toggle-in-combat", "&cYou cannot toggle PvP mode while in combat!")));
+            return;
+        }
         
         // Save original inventory
         originalInventories.put(uuid, player.getInventory().getContents().clone());
@@ -328,34 +348,34 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
 
     private boolean isPvPItem(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
-        return item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.BYTE) || 
-               item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.INTEGER);
+        return item.getItemMeta().getPersistentDataContainer().has(pvpItemKey, PersistentDataType.INTEGER);
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        // Prevent moving PvP items out of player inventory
-        if (event.getView().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.PLAYER 
-                && event.getView().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
-            
-            ItemStack currentItem = event.getCurrentItem();
-            ItemStack cursorItem = event.getCursor();
-            
-            boolean currentIsPvP = isPvPItem(currentItem);
-            boolean cursorIsPvP = isPvPItem(cursorItem);
-            
-            // If they interact with top inventory using a PvP item (or hotbar switch)
-            if (currentIsPvP || cursorIsPvP) {
+        ItemStack currentItem = event.getCurrentItem();
+        ItemStack cursorItem = event.getCursor();
+        
+        boolean currentIsPvP = isPvPItem(currentItem);
+        boolean cursorIsPvP = isPvPItem(cursorItem);
+        
+        if (currentIsPvP || cursorIsPvP) {
+            if (event.getClickedInventory() != null && event.getClickedInventory().getType() != org.bukkit.event.inventory.InventoryType.PLAYER && event.getClickedInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
                 event.setCancelled(true);
                 return;
             }
-            
-            // Check for hotbar swaps
-            if (event.getAction() == org.bukkit.event.inventory.InventoryAction.HOTBAR_SWAP || event.getAction() == org.bukkit.event.inventory.InventoryAction.HOTBAR_MOVE_AND_READD) {
-                int hotbarButton = event.getHotbarButton();
-                if (hotbarButton >= 0) {
-                    ItemStack hotbarItem = event.getWhoClicked().getInventory().getItem(hotbarButton);
-                    if (isPvPItem(hotbarItem)) {
+            if (event.getAction() == org.bukkit.event.inventory.InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+        
+        if (event.getAction() == org.bukkit.event.inventory.InventoryAction.HOTBAR_SWAP || event.getAction() == org.bukkit.event.inventory.InventoryAction.HOTBAR_MOVE_AND_READD) {
+            int hotbarButton = event.getHotbarButton();
+            if (hotbarButton >= 0) {
+                ItemStack hotbarItem = event.getWhoClicked().getInventory().getItem(hotbarButton);
+                if (isPvPItem(hotbarItem)) {
+                    if (event.getClickedInventory() != null && event.getClickedInventory().getType() != org.bukkit.event.inventory.InventoryType.PLAYER && event.getClickedInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
                         event.setCancelled(true);
                     }
                 }
@@ -365,29 +385,28 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
 
     @EventHandler
     public void onInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.PLAYER 
-                && event.getView().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
-            
-            ItemStack cursorItem = event.getOldCursor();
-            if (isPvPItem(cursorItem)) {
+        ItemStack cursorItem = event.getOldCursor();
+        if (isPvPItem(cursorItem)) {
+            if (event.getInventory() != null && event.getInventory().getType() != org.bukkit.event.inventory.InventoryType.PLAYER && event.getInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
                 event.setCancelled(true);
             }
         }
     }
 
     @EventHandler
-    public void onPlayerRespawn(PlayerRespawnEvent event) {
-        if (activePvpPlayers.contains(event.getPlayer().getUniqueId())) {
-            untogglePvP(event.getPlayer());
+    public void onEntityDamageByEntity(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof Player && event.getDamager() instanceof Player) {
+            lastCombatTime.put(event.getEntity().getUniqueId(), System.currentTimeMillis());
+            lastCombatTime.put(event.getDamager().getUniqueId(), System.currentTimeMillis());
         }
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        // Automatically exit pvp mode on quit to ensure items are saved properly
         if (activePvpPlayers.contains(event.getPlayer().getUniqueId())) {
             untogglePvP(event.getPlayer());
         }
+        lastCombatTime.remove(event.getPlayer().getUniqueId());
     }
 
     @EventHandler
@@ -455,6 +474,9 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                     }
                 }
             }
+            
+            // Cleanly restore their state immediately (so they have original items when respawning) 
+            untogglePvP(player);
         }
     }
 }
