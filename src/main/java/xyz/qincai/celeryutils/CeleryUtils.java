@@ -492,7 +492,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             sender.sendMessage("§f/cu update §7- §7Check for plugin updates");
             sender.sendMessage("§f/cu reload §7- §7Reload configs and (re)load modules if changed");
         }
-        sender.sendMessage("§7For more details use §b/cu help [link|ecoperm|whitelist|admin]§7.");
+        sender.sendMessage("§7Modules: §aDiscord Link, Discord Whitelist Channel, Economy Permissions, Death Penalty, PvP Module, Inventory Totem");
+        sender.sendMessage("§7For more details use §b/cu help modules §7or §b/cu help [link|ecoperm|whitelist|admin]§7.");
     }
 
     private void sendHelpTopic(CommandSender sender, String topic) {
@@ -504,7 +505,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§7Step 2: Send code to Discord bot's DM");
                 sender.sendMessage("§7Your Discord nickname will sync with your Minecraft name.");
             }
-            case "whitelist" -> {
+            case "whitelist", "discord whitelist", "discord-whitelist", "discordwhitelist" -> {
                 sender.sendMessage("§b§lCeleryUtils §7- §fDiscord Whitelist Help");
                 sender.sendMessage("§7This module automatically whitelists players who send their");
                 sender.sendMessage("§7usernames in the configured Discord channel.");
@@ -517,6 +518,15 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                     // Config handles pricing and duration
                     sender.sendMessage("§cPrices and durations can be configured in config.yml.");
                 }
+            }
+            case "modules", "module" -> {
+                sender.sendMessage("§b§lCeleryUtils §7- §fModules");
+                sender.sendMessage("§fDiscord Link §7- §7Link Minecraft players to Discord and sync nicknames.");
+                sender.sendMessage("§fDiscord Whitelist Channel §7- §7Auto-whitelist players from names posted in a Discord channel.");
+                sender.sendMessage("§fEconomy Permissions §7- §7Sell permission rules via economy and configurable buyable permissions.");
+                sender.sendMessage("§fDeath Penalty §7- §7Apply XP and/or money penalties when players die with keepInventory enabled.");
+                sender.sendMessage("§fPvP Module §7- §7Enable toggleable PvP mode with saved gear loadouts via /pvp.");
+                sender.sendMessage("§fInventory Totem §7- §7Use a Totem of Undying from inventory automatically when you would die.");
             }
             case "status", "version" -> {
                 sender.sendMessage("§b§lCeleryUtils §7- §fStatus Help");
