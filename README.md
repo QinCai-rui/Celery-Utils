@@ -20,7 +20,7 @@ This plugin has a modular design that allows for specific modules to be enabled 
 - **Discord Link**: generates a 6-digit code in Minecraft and links the account to Discord so nicknames stay in sync.
 - **Discord Whitelist Channel**: manages Minecraft server whitelist requests through a Discord channel.
 - **Economy Permissions**: grants permissions based on a player's balance or lets permissions be purchased using the economy.
-- **Death Penalty**: applies configurable penalties on death, such as item loss or economy deductions. Useful for servers with `keepInventory` on to add consequences to dying.
+- **Death Penalty**: applies configurable penalties on death, such as item loss or economy deductions. Useful for servers with `keep_inventory` on to add consequences to dying.
 
 ## HOW TO - server admins
 
