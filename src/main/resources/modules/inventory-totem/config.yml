@@ -12,3 +12,49 @@ activation-message: "&aA Totem of Undying in your inventory saved your life!"
 
 # Whether to force play the vanilla totem resurrect effect.
 play-totem-effect: true
+
+# Broadcast a death-like message when a totem saves a player from an inventory slot
+broadcast-messages:
+  enabled: true
+  
+  # The default message to broadcast if the specific cause is not found
+  default: "&e%player% died but came back to life thanks to &e&lTotem Of Undying&e in their inventory"
+  
+  # Specific messages based on the damage cause. Use placeholders %player%.
+  causes:
+    CONTACT: "&e%player% was pricked to death but decided to stop being poked thanks to &e&lTotem Of Undying&e in their inventory"
+    SWEET_BERRY_BUSH: "&e%player% got poked to death by a sweet berry bush but got the thorns off thanks to &e&lTotem Of Undying&e in their inventory"
+    FIREWORK_EXPLOSION: "&e%player% went out with a bang but continued with the show thanks to &e&lTotem Of Undying&e in their inventory"
+    ENTITY_EXPLOSION: "&e%player% blew up but stayed intact thanks to &e&lTotem Of Undying&e in their inventory"
+    BLOCK_EXPLOSION: "&e%player% blew up but stayed intact thanks to &e&lTotem Of Undying&e in their inventory"
+    INTENTIONAL_GAME_DESIGN: "&e%player% was killed by [Intentional Game Design] but survived unintentionally thanks to &e&lTotem Of Undying&e in their inventory"
+    SUFFOCATION: "&e%player% suffocated in a wall but got out thanks to &e&lTotem Of Undying&e in their inventory"
+    FALLING_BLOCK: "&e%player% was squashed by a falling block but unflattened thanks to &e&lTotem Of Undying&e in their inventory"
+    FALLING_ANVIL: "&e%player% was squashed by a falling anvil but got unsquished thanks to &e&lTotem Of Undying&e in their inventory"
+    FALLING_STALACTITE: "&e%player% was skewered by a falling stalactite but was unskewered thanks to &e&lTotem Of Undying&e in their inventory"
+    ENTITY_ATTACK: "&e%player% was pummeled but came out fine thanks to &e&lTotem Of Undying&e in their inventory"
+    ENTITY_SWEEP_ATTACK: "&e%player% was pummeled but came out fine thanks to &e&lTotem Of Undying&e in their inventory"
+    BEE_STING: "&e%player% was stung to death but it didn't pinch thanks to &e&lTotem Of Undying&e in their inventory"
+    THORNS: "&e%player% died to thorns but came back to life thanks to &e&lTotem Of Undying&e in their inventory"
+    FLY_INTO_WALL: "&e%player% experienced kinetic energy but it was converted back to potential energy thanks to &e&lTotem Of Undying&e in their inventory"
+    FREEZE: "&e%player% froze to death but kept themselves warm using &e&lTotem Of Undying&e in their inventory"
+    WITHER: "&e%player% withered away but didn't wither thanks to &e&lTotem Of Undying&e in their inventory"
+    HOT_FLOOR: "&e%player% discovered the floor was lava but didn't care because of &e&lTotem Of Undying&e in their inventory"
+    CRAMMING: "&e%player% was squished too much but hung in there thanks to &e&lTotem Of Undying&e in their inventory"
+    DROWNING: "&e%player% drowned but swam further thanks to &e&lTotem Of Undying&e in their inventory"
+    VOID: "&e%player% left the confines of this world but was brought back into the world thanks to &e&lTotem Of Undying&e in their inventory"
+    STARVATION: "&e%player% starved to death but ate &e&lTotem Of Undying&e in their inventory"
+    LAVA: "&e%player% swam in lava with the help of &e&lTotem Of Undying&e in their inventory"
+    LAVA_BOUNCE: "&e%player% died because not just the floor is lava but bounced back thanks to &e&lTotem Of Undying&e in their inventory"
+    FIRE: "&e%player% was burnt to death but cooled down thanks to &e&lTotem Of Undying&e in their inventory"
+    FIRE_TICK: "&e%player% went up in flames but cooled down thanks to &e&lTotem Of Undying&e in their inventory"
+    LIGHTNING: "&e%player% was struck by lightning but absorbed it thanks to &e&lTotem Of Undying&e in their inventory"
+    SONIC_BOOM: "&e%player% was obliterated by a sonically-charged shriek but got reconstructed thanks to &e&lTotem Of Undying&e in their inventory"
+    MAGIC: "&e%player% was killed by magic but the magic was nullified thanks to &e&lTotem Of Undying&e in their inventory"
+    DRAGON_BREATH: "&e%player% was killed by magic but the magic was nullified thanks to &e&lTotem Of Undying&e in their inventory"
+    FALL: "&e%player% fell from a high place but landed safely thanks to &e&lTotem Of Undying&e in their inventory"
+    FALLING_ON_STALAGMITE: "&e%player% was impaled on a stalagmite but un-impaled thanks to &e&lTotem Of Undying&e in their inventory"
+    ENDER_PEARL: "&e%player% hit the ground too hard but got back up thanks to &e&lTotem Of Undying&e in their inventory"
+    PROJECTILE: "&e%player% was shot to death but came back to life thanks to &e&lTotem Of Undying&e in their inventory"
+    MACE_SMASH: "&e%player% was smashed by a mace but got the weight off thanks to &e&lTotem Of Undying&e in their inventory"
+    TRIDENT_SPEAR: "&e%player% was speared but felt nothing thanks to &e&lTotem Of Undying&e in their inventory"

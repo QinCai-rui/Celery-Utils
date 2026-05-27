@@ -119,6 +119,98 @@ public class InventoryTotemModule implements CeleryModule, Listener {
             if (config.getBoolean("play-totem-effect", true)) {
                 player.playEffect(org.bukkit.EntityEffect.TOTEM_RESURRECT);
             }
+
+            // Broadcast death message
+            if (config.getBoolean("broadcast-messages.enabled", true)) {
+                String causeName = resolveDeathCause(player);
+
+                String broadcastMsg = config.getString("broadcast-messages.causes." + causeName);
+                if (broadcastMsg == null || broadcastMsg.isEmpty()) {
+                    broadcastMsg = config.getString("broadcast-messages.default", "&e%player% died but came back to life thanks to &e&lTotem Of Undying&e in their inventory");
+                }
+
+                if (broadcastMsg != null && !broadcastMsg.isEmpty()) {
+                    broadcastMsg = broadcastMsg.replace("%player%", player.getName());
+                    plugin.getServer().broadcastMessage(ChatColor.translateAlternateColorCodes('&', broadcastMsg));
+                }
+            }
         }
+    }
+
+    private String resolveDeathCause(Player player) {
+        org.bukkit.event.entity.EntityDamageEvent event = player.getLastDamageCause();
+        if (event == null) return "DEFAULT";
+
+        org.bukkit.event.entity.EntityDamageEvent.DamageCause cause = event.getCause();
+
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent) {
+            org.bukkit.event.entity.EntityDamageByEntityEvent edbe = (org.bukkit.event.entity.EntityDamageByEntityEvent) event;
+            org.bukkit.entity.Entity damager = edbe.getDamager();
+
+            if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.PROJECTILE) {
+                if (damager instanceof org.bukkit.entity.Trident) {
+                    return "TRIDENT_SPEAR";
+                }
+                if (damager instanceof org.bukkit.entity.EnderPearl) {
+                    return "ENDER_PEARL";
+                }
+            }
+
+            if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) {
+                if (damager instanceof org.bukkit.entity.EnderPearl) {
+                    return "ENDER_PEARL";
+                }
+            }
+
+            if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
+                if (damager instanceof org.bukkit.entity.Firework) {
+                    return "FIREWORK_EXPLOSION";
+                }
+            }
+
+            if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_ATTACK || cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK) {
+                if (damager instanceof org.bukkit.entity.Bee) {
+                    return "BEE_STING";
+                }
+                if (damager instanceof Player) {
+                    ItemStack weapon = ((Player) damager).getInventory().getItemInMainHand();
+                    if (weapon != null && weapon.getType().name().equals("MACE")) {
+                        return "MACE_SMASH";
+                    }
+                }
+            }
+        }
+
+        if (event instanceof org.bukkit.event.entity.EntityDamageByBlockEvent) {
+            org.bukkit.event.entity.EntityDamageByBlockEvent edbb = (org.bukkit.event.entity.EntityDamageByBlockEvent) event;
+            org.bukkit.block.Block block = edbb.getDamager();
+
+            if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.CONTACT) {
+                if (block != null && block.getType().name().contains("BERRY_BUSH")) {
+                    return "SWEET_BERRY_BUSH";
+                }
+            }
+
+            if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
+                if (block != null && (block.getType().name().contains("BED") || block.getType().name().contains("RESPAWN_ANCHOR"))) {
+                    return "INTENTIONAL_GAME_DESIGN";
+                }
+            }
+            
+            if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALLING_BLOCK) {
+                if (block != null && block.getType().name().contains("ANVIL")) {
+                    return "FALLING_ANVIL";
+                }
+            }
+        }
+
+        if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) {
+            org.bukkit.block.Block currentBlock = player.getLocation().getBlock();
+            if (currentBlock.getType().name().contains("POINTED_DRIPSTONE")) {
+                return "FALLING_ON_STALAGMITE";
+            }
+        }
+
+        return cause.name();
     }
 }
