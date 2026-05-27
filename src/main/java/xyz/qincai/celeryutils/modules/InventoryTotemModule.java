@@ -73,6 +73,15 @@ public class InventoryTotemModule implements CeleryModule, Listener {
         }
 
         PlayerInventory inv = player.getInventory();
+
+        // If the player already has an active totem in hand, let vanilla handle the process.
+        ItemStack mainHand = inv.getItemInMainHand();
+        ItemStack offHand = inv.getItemInOffHand();
+        if ((mainHand != null && mainHand.getType() == Material.TOTEM_OF_UNDYING)
+                || (offHand != null && offHand.getType() == Material.TOTEM_OF_UNDYING)) {
+            return;
+        }
+
         boolean foundTotem = false;
         int totemSlot = -1;
 
