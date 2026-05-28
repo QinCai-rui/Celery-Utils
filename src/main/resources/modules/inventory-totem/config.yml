@@ -1,5 +1,9 @@
-# Inventory Totem Module Config
+# Inventory Totem Module Configuration
 # Allows players to use a Totem of Undying from anywhere in their inventory.
+
+# NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
+# SERVER ADMIN: do not touch
+config-version: 1.1
 
 # Required permission to use this feature (leave empty to not require a permission)
 permission-node: "celeryutils.totem"
