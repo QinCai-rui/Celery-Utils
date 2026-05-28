@@ -126,7 +126,7 @@ public class InventoryTotemModule implements CeleryModule, Listener {
 
                 String broadcastMsg = config.getString("broadcast-messages.causes." + causeName);
                 if (broadcastMsg == null || broadcastMsg.isEmpty()) {
-                    broadcastMsg = config.getString("broadcast-messages.default", "&e%player% died but came back to life thanks to &e&lTotem Of Undying&e in their inventory");
+                    broadcastMsg = config.getString("broadcast-messages.default", "%player% died but came back to life thanks to &e[Totem Of Undying]&r in their &linventory");
                 }
 
                 if (broadcastMsg != null && !broadcastMsg.isEmpty()) {
