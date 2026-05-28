@@ -162,15 +162,22 @@ public final class UpdateChecker {
             state = new State(updateAvailable, currentVersion, latestVersion, downloadUrl, null);
 
             if (updateAvailable) {
-                plugin.getLogger().warning("New CeleryUtils version available: " + currentVersion + " -> " + latestVersion +
-                        (downloadUrl.isBlank() ? "" : " (" + downloadUrl + ")"));
-                
-                if (autoDownload) {
-                    String assetUrl = findFirstGroup(ASSET_DOWNLOAD_URL_PATTERN, body);
-                    if (!assetUrl.isBlank()) {
-                        downloadUpdate(assetUrl, latestVersion);
-                    } else {
-                        plugin.getLogger().warning("Auto-download failed: no .jar asset found in release.");
+                File updateFolder = plugin.getServer().getUpdateFolderFile();
+                File targetFile = new File(updateFolder, "CeleryUtils-" + latestVersion + ".jar");
+
+                if (targetFile.exists()) {
+                    plugin.getLogger().info("CeleryUtils update (" + latestVersion + ") is already downloaded and pending restart/reload.");
+                } else {
+                    plugin.getLogger().warning("New CeleryUtils version available: " + currentVersion + " -> " + latestVersion +
+                            (downloadUrl.isBlank() ? "" : " (" + downloadUrl + ")"));
+                    
+                    if (autoDownload) {
+                        String assetUrl = findFirstGroup(ASSET_DOWNLOAD_URL_PATTERN, body);
+                        if (!assetUrl.isBlank()) {
+                            downloadUpdate(assetUrl, latestVersion);
+                        } else {
+                            plugin.getLogger().warning("Auto-download failed: no .jar asset found in release.");
+                        }
                     }
                 }
             } else {
