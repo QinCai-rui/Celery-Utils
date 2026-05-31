@@ -299,31 +299,30 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         if (list != null) {
             for (int i = 0; i < list.size(); i++) {
                 Object obj = list.get(i);
-                    if (obj instanceof ItemStack) {
-                        ItemStack item = ((ItemStack) obj).clone();
-                        
-                        // Tag as PvP item
-                        ItemMeta meta = item.getItemMeta();
-                        if (meta != null) {
-                            meta.getPersistentDataContainer().set(pvpItemKey, PersistentDataType.INTEGER, i);
-                            item.setItemMeta(meta);
-                        }
-                        
-                        // Try to equip armor
-                        String type = item.getType().name();
-                        if (type.endsWith("_HELMET") && player.getInventory().getHelmet() == null) {
-                            player.getInventory().setHelmet(item);
-                        } else if (type.endsWith("_CHESTPLATE") && player.getInventory().getChestplate() == null) {
-                            player.getInventory().setChestplate(item);
-                        } else if (type.endsWith("_LEGGINGS") && player.getInventory().getLeggings() == null) {
-                            player.getInventory().setLeggings(item);
-                        } else if (type.endsWith("_BOOTS") && player.getInventory().getBoots() == null) {
-                            player.getInventory().setBoots(item);
-                        } else if (type.equals("SHIELD") && player.getInventory().getItemInOffHand().getType() == Material.AIR) {
-                            player.getInventory().setItemInOffHand(item);
-                        } else {
-                            player.getInventory().addItem(item);
-                        }
+                if (obj instanceof ItemStack) {
+                    ItemStack item = ((ItemStack) obj).clone();
+                    
+                    // Tag as PvP item
+                    ItemMeta meta = item.getItemMeta();
+                    if (meta != null) {
+                        meta.getPersistentDataContainer().set(pvpItemKey, PersistentDataType.INTEGER, i);
+                        item.setItemMeta(meta);
+                    }
+                    
+                    // Try to equip armor
+                    String type = item.getType().name();
+                    if (type.endsWith("_HELMET") && player.getInventory().getHelmet() == null) {
+                        player.getInventory().setHelmet(item);
+                    } else if (type.endsWith("_CHESTPLATE") && player.getInventory().getChestplate() == null) {
+                        player.getInventory().setChestplate(item);
+                    } else if (type.endsWith("_LEGGINGS") && player.getInventory().getLeggings() == null) {
+                        player.getInventory().setLeggings(item);
+                    } else if (type.endsWith("_BOOTS") && player.getInventory().getBoots() == null) {
+                        player.getInventory().setBoots(item);
+                    } else if (type.equals("SHIELD") && player.getInventory().getItemInOffHand().getType() == Material.AIR) {
+                        player.getInventory().setItemInOffHand(item);
+                    } else {
+                        player.getInventory().addItem(item);
                     }
                 }
             }

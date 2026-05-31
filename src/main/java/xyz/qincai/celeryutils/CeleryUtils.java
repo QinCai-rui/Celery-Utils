@@ -184,12 +184,12 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
     }
-databaseManager != null) {
-            databaseManager.close();
-        }
-        if (
+
     @Override
     public void onDisable() {
+        if (databaseManager != null) {
+            databaseManager.close();
+        }
         if (updateChecker != null) {
             updateChecker.stop();
         }
