@@ -19,6 +19,7 @@ import xyz.qincai.celeryutils.modules.PvPModule;
 import xyz.qincai.celeryutils.modules.InventoryTotemModule;
 import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 import xyz.qincai.celeryutils.database.DatabaseManager;
+import xyz.qincai.celeryutils.logging.NamespaceLogCleaner;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,10 +42,13 @@ public class CeleryUtils extends JavaPlugin implements Listener {
     private final Map<String, CeleryModule> modules = new HashMap<>();
     private UpdateChecker updateChecker;
     private DatabaseManager databaseManager;
+    private NamespaceLogCleaner namespaceLogCleaner;
 
     @Override
     public void onEnable() {
         instance = this;
+        namespaceLogCleaner = new NamespaceLogCleaner();
+        namespaceLogCleaner.install();
 
         getLogger().info("========================================");
         getLogger().info("CeleryUtils v" + getDescription().getVersion());
@@ -187,6 +191,10 @@ public class CeleryUtils extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        if (namespaceLogCleaner != null) {
+            namespaceLogCleaner.uninstall();
+            namespaceLogCleaner = null;
+        }
         if (databaseManager != null) {
             databaseManager.close();
         }
