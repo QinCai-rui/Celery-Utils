@@ -20,6 +20,9 @@ import xyz.qincai.celeryutils.CeleryUtils;
 import xyz.qincai.celeryutils.api.CeleryModule;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -34,6 +37,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     private Permission permission;
     private boolean enabled = false;
     private final Map<String, EconomyPermissionRule> rules = new HashMap<>();
+    private final Map<UUID, Set<String>> dbPurchasedPerms = new java.util.concurrent.ConcurrentHashMap<>();
     private final NamespacedKey purchasedKey;
     private final Map<Integer, BukkitTask> revokeTasks = new java.util.concurrent.ConcurrentHashMap<>();
     private BukkitTask periodicCheckTask;
@@ -51,6 +55,9 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
     @Override
     public boolean initialize() {
         try {
+            plugin.getDatabaseManager().executeUpdate("CREATE TABLE IF NOT EXISTS economy_permissions (minecraft_uuid VARCHAR(36), permission_node VARCHAR(255), PRIMARY KEY (minecraft_uuid, permission_node))");
+            loadFromDatabase();
+
             // Setup economy
             RegisteredServiceProvider<Economy> economyProvider = 
                     Bukkit.getServicesManager().getRegistration(Economy.class);
@@ -182,12 +189,8 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
             // Grant permission
             permission.playerAdd(rule.world(), player, rule.permissionNode());            
             // Mark as purchased to prevent balance-based revocation
-            PersistentDataContainer data = player.getPersistentDataContainer();
-            String currentPurchased = data.getOrDefault(purchasedKey, PersistentDataType.STRING, "");
-            if (!currentPurchased.contains(rule.permissionNode())) {
-                String newVal = currentPurchased.isEmpty() ? rule.permissionNode() : currentPurchased + "," + rule.permissionNode();
-                data.set(purchasedKey, PersistentDataType.STRING, newVal);
-            }
+            addToDatabase(player.getUniqueId(), rule.permissionNode());
+            
             player.sendMessage("§aPurchased and granted permission: " + rule.permissionNode());
 
             // If temporary, schedule revoke
@@ -222,6 +225,19 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         if (!isEnabled()) return;
         Player player = event.getPlayer();
 
+        // Migrate from PDC
+        org.bukkit.persistence.PersistentDataContainer data = player.getPersistentDataContainer();
+        if (data.has(purchasedKey, org.bukkit.persistence.PersistentDataType.STRING)) {
+            String purchased = data.get(purchasedKey, org.bukkit.persistence.PersistentDataType.STRING);
+            if (purchased != null && !purchased.isEmpty()) {
+                plugin.getLogger().info("Migrating economy purchases to DB for " + player.getName());
+                for (String perm : purchased.split(",")) {
+                    if (!perm.isEmpty()) addToDatabase(player.getUniqueId(), perm);
+                }
+            }
+            data.remove(purchasedKey);
+        }
+
         Bukkit.getScheduler().runTask(plugin, () -> {
             checkPlayerBalance(player);
         });
@@ -249,8 +265,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         double balance = economy.getBalance(player);
         
         // Get list of permissions this player has purchased
-        String purchased = player.getPersistentDataContainer().getOrDefault(purchasedKey, PersistentDataType.STRING, "");
-        List<String> purchasedList = Arrays.asList(purchased.split(","));
+        Set<String> purchasedList = dbPurchasedPerms.getOrDefault(player.getUniqueId(), Collections.emptySet());
 
         for (Map.Entry<String, EconomyPermissionRule> entry : rules.entrySet()) {
             EconomyPermissionRule rule = entry.getValue();
@@ -299,5 +314,46 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
                 player.sendMessage("    §fRequirement: §e$" + rule.minBalance() + " balance");
             }
         }
+    }
+
+    private void loadFromDatabase() {
+        try (Connection conn = plugin.getDatabaseManager().getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT minecraft_uuid, permission_node FROM economy_permissions")) {
+            while (rs.next()) {
+                UUID uuid = UUID.fromString(rs.getString("minecraft_uuid"));
+                dbPurchasedPerms.computeIfAbsent(uuid, k -> new HashSet<>())
+                                .add(rs.getString("permission_node"));
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load economy permissions from database", e);
+        }
+    }
+
+    private void addToDatabase(UUID uuid, String permNode) {
+        dbPurchasedPerms.computeIfAbsent(uuid, k -> new HashSet<>()).add(permNode);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR IGNORE INTO economy_permissions (minecraft_uuid, permission_node) VALUES ('" + uuid.toString() + "', '" + permNode + "')");
+                } else {
+                    plugin.getDatabaseManager().executeUpdate("INSERT IGNORE INTO economy_permissions (minecraft_uuid, permission_node) VALUES ('" + uuid.toString() + "', '" + permNode + "')");
+                }
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to insert economy permission into db", e);
+            }
+        });
+    }
+
+    private void removeFromDatabase(UUID uuid, String permNode) {
+        Set<String> perms = dbPurchasedPerms.get(uuid);
+        if (perms != null) perms.remove(permNode);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                plugin.getDatabaseManager().executeUpdate("DELETE FROM economy_permissions WHERE minecraft_uuid='" + uuid.toString() + "' AND permission_node='" + permNode + "'");
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to delete economy permission from db", e);
+            }
+        });
     }
 }

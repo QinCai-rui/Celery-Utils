@@ -285,9 +285,12 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
 
     private void loadPersistedLinks(FileConfiguration cfg) {
         linkedAccountsByUuid.clear();
+        plugin.getDatabaseManager().executeUpdate("CREATE TABLE IF NOT EXISTS discord_links (minecraft_uuid VARCHAR(36) PRIMARY KEY, discord_id BIGINT, minecraft_name VARCHAR(255))");
 
+        // Migrate from config.yml if needed
         ConfigurationSection links = cfg.getConfigurationSection("links");
         if (links != null) {
+            plugin.getLogger().info("Migrating Discord links from YAML to database...");
             for (String key : links.getKeys(false)) {
                 try {
                     long discordId = Long.parseLong(key);
@@ -297,12 +300,37 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                         continue;
                     }
 
-                    UUID minecraftUuid = UUID.fromString(uuidText);
-                    linkedAccountsByUuid.put(minecraftUuid, new LinkedAccount(discordId, minecraftUuid, minecraftName));
+                    if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
+                        plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + uuidText + "', " + discordId + ", '" + minecraftName + "')");
+                    } else {
+                        plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + uuidText + "', " + discordId + ", '" + minecraftName + "') ON DUPLICATE KEY UPDATE discord_id=" + discordId + ", minecraft_name='" + minecraftName + "'");
+                    }
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Skipping invalid Discord link entry: " + key);
+                    plugin.getLogger().warning("Skipping invalid Discord link entry during migration: " + key);
                 }
             }
+            cfg.set("links", null);
+            try {
+                cfg.save(configFile);
+                plugin.getLogger().info("Migration complete!");
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to save config after migration", e);
+            }
+        }
+
+        // Load all links from database
+        try (java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+             java.sql.Statement stmt = conn.createStatement();
+             java.sql.ResultSet rs = stmt.executeQuery("SELECT minecraft_uuid, discord_id, minecraft_name FROM discord_links")) {
+            while (rs.next()) {
+                java.util.UUID uuid = java.util.UUID.fromString(rs.getString("minecraft_uuid"));
+                long discordId = rs.getLong("discord_id");
+                String name = rs.getString("minecraft_name");
+                linkedAccountsByUuid.put(uuid, new LinkedAccount(discordId, uuid, name));
+            }
+            plugin.getLogger().info("Loaded " + linkedAccountsByUuid.size() + " Discord links from database.");
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load Discord links from db", e);
         }
     }
 
@@ -346,21 +374,19 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
     }
 
     private void saveLinkToConfig(long discordId, UUID minecraftUuid, String minecraftName) {
-        if (!persistLinks || moduleConfig == null || configFile == null) {
+        if (!persistLinks) {
             return;
         }
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            synchronized (moduleConfig) {
-                moduleConfig.set("links." + discordId + ".minecraft-uuid", minecraftUuid.toString());
-                moduleConfig.set("links." + discordId + ".minecraft-name", minecraftName);
-                moduleConfig.set("links." + discordId + ".linked-at", System.currentTimeMillis());
-        
-                try {
-                    moduleConfig.save(configFile);
-                } catch (Exception e) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to save Discord link config", e);
+            try {
+                if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + minecraftUuid.toString() + "', " + discordId + ", '" + minecraftName + "')");
+                } else {
+                    plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + minecraftUuid.toString() + "', " + discordId + ", '" + minecraftName + "') ON DUPLICATE KEY UPDATE discord_id=" + discordId + ", minecraft_name='" + minecraftName + "'");
                 }
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to save Discord link to db", e);
             }
         });
     }

@@ -18,6 +18,7 @@ import xyz.qincai.celeryutils.modules.DeathPenaltyModule;
 import xyz.qincai.celeryutils.modules.PvPModule;
 import xyz.qincai.celeryutils.modules.InventoryTotemModule;
 import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
+import xyz.qincai.celeryutils.database.DatabaseManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
     private static CeleryUtils instance;
     private final Map<String, CeleryModule> modules = new HashMap<>();
     private UpdateChecker updateChecker;
+    private DatabaseManager databaseManager;
 
     @Override
     public void onEnable() {
@@ -60,6 +62,9 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
         upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
         upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
+
+        databaseManager = new DatabaseManager(this);
+        databaseManager.initialize(getConfig().getConfigurationSection("database"));
 
         updateChecker = new UpdateChecker(this);
         updateChecker.start();
@@ -179,7 +184,10 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
     }
-
+databaseManager != null) {
+            databaseManager.close();
+        }
+        if (
     @Override
     public void onDisable() {
         if (updateChecker != null) {
@@ -195,6 +203,10 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         }
 
         getLogger().info("CeleryUtils disabled!");
+    }
+
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
     }
 
     private void initializeModules() {

@@ -8,6 +8,18 @@ config-version: 1.4
 global:
   debug: false
 
+# Database configuration used across all supported modules
+database:
+  # SQLITE or MYSQL
+  type: SQLITE
+  host: "localhost"
+  port: 3306
+  database: "celeryutils"
+  username: "root"
+  password: ""
+  use-ssl: false
+  pool-size: 10
+
 update-checker:
   enabled: true
   auto-download: true

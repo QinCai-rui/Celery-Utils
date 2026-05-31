@@ -70,6 +70,9 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             moduleConfig = YamlConfiguration.loadConfiguration(configFile);
             loadSettings(moduleConfig);
 
+            plugin.getDatabaseManager().executeUpdate("CREATE TABLE IF NOT EXISTS discord_whitelist (discord_id BIGINT PRIMARY KEY, count INT)");
+            loadWhitelistCounts();
+
             String token = moduleConfig.getString("bot-token", "").trim();
             if (token.isEmpty()) {
                 plugin.getLogger().warning("Discord bot token not configured in " + CONFIG_PATH);
@@ -173,7 +176,13 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             } else if (result.contains("Added")) {
                 results.append("✅ **").append(username).append("** - Added to whitelist\n");
                 whitelistedCount++;
-                userWhitelistCount.put(event.getAuthor().getIdLong(), currentCount + 1);
+                int updatedCount = currentCount + 1;
+                userWhitelistCount.put(event.getAuthor().getIdLong(), updatedCount);
+                if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_whitelist (discord_id, count) VALUES (" + event.getAuthor().getIdLong() + ", " + updatedCount + ")");
+                } else {
+                    plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_whitelist (discord_id, count) VALUES (" + event.getAuthor().getIdLong() + ", " + updatedCount + ") ON DUPLICATE KEY UPDATE count=" + updatedCount);
+                }
             } else {
                 results.append("❌ **").append(username).append("** - Error: ").append(result).append("\n");
             }
@@ -232,5 +241,18 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         this.maxPlayersPerUser = config.getInt("max-players-per-user", 1);
         this.requiresRole = config.getBoolean("role-requirement.enabled", false);
         this.requiredRoleId = config.getString("role-requirement.role-id", "");
+    }
+
+    private void loadWhitelistCounts() {
+        try (java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+             java.sql.Statement stmt = conn.createStatement();
+             java.sql.ResultSet rs = stmt.executeQuery("SELECT discord_id, count FROM discord_whitelist")) {
+             while (rs.next()) {
+                 userWhitelistCount.put(rs.getLong("discord_id"), rs.getInt("count"));
+             }
+             plugin.getLogger().info("Loaded " + userWhitelistCount.size() + " whitelist counts from database.");
+        } catch (java.sql.SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load whitelist counts from db", e);
+        }
     }
 }

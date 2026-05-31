@@ -31,6 +31,12 @@ import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 
+import xyz.qincai.celeryutils.api.ItemSerialization;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class PvPModule implements CeleryModule, Listener, CommandExecutor {
 
     private final CeleryUtils plugin;
@@ -47,6 +53,9 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
     
     private final Set<UUID> activePvpPlayers = new HashSet<>();
     private final Map<UUID, Long> lastCombatTime = new HashMap<>();
+
+    private final Map<UUID, List<ItemStack>> dbLoadouts = new ConcurrentHashMap<>();
+
     private NamespacedKey pvpItemKey;
 
     public PvPModule(CeleryUtils plugin) {
@@ -77,6 +86,29 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
             }
         }
         this.loadoutsConfig = YamlConfiguration.loadConfiguration(loadoutsFile);
+
+        plugin.getDatabaseManager().executeUpdate("CREATE TABLE IF NOT EXISTS pvp_loadouts (minecraft_uuid VARCHAR(36) PRIMARY KEY, loadout TEXT)");
+        loadFromDatabase();
+
+        if (loadoutsFile.exists() && loadoutsConfig.contains("loadouts")) {
+            plugin.getLogger().info("Migrating PvP loadouts from YAML to database...");
+            ConfigurationSection sec = loadoutsConfig.getConfigurationSection("loadouts");
+            if (sec != null) {
+                for (String key : sec.getKeys(false)) {
+                    try {
+                        UUID uuid = UUID.fromString(key);
+                        List<ItemStack> items = (List<ItemStack>) sec.getList(key);
+                        if (items != null) {
+                            dbLoadouts.put(uuid, items);
+                            saveToDatabase(uuid, items);
+                        }
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Failed to migrate loadout for " + key);
+                    }
+                }
+            }
+            loadoutsFile.renameTo(new File(plugin.getDataFolder(), "modules/pvp-module/loadouts.yml.old"));
+        }
 
         this.pvpItemKey = new NamespacedKey(plugin, "pvp_item");
 
@@ -110,9 +142,45 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         return plugin.getConfig().getBoolean("modules.pvp-module.enabled", false);
     }
 
+    private void saveToDatabase(UUID uuid, List<ItemStack> loadout) {
+        if (loadout == null) {
+            plugin.getDatabaseManager().executeUpdate("DELETE FROM pvp_loadouts WHERE minecraft_uuid='" + uuid.toString() + "'");
+            return;
+        }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                String encoded = ItemSerialization.toBase64(loadout.toArray(new ItemStack[0]));
+                if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO pvp_loadouts (minecraft_uuid, loadout) VALUES ('" + uuid.toString() + "', '" + encoded + "')");
+                } else {
+                    plugin.getDatabaseManager().executeUpdate("INSERT INTO pvp_loadouts (minecraft_uuid, loadout) VALUES ('" + uuid.toString() + "', '" + encoded + "') ON DUPLICATE KEY UPDATE loadout='" + encoded + "'");
+                }
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to save pvp loadout to db", e);
+            }
+        });
+    }
+
+    private void loadFromDatabase() {
+        try (Connection conn = plugin.getDatabaseManager().getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT minecraft_uuid, loadout FROM pvp_loadouts")) {
+            while (rs.next()) {
+                UUID uuid = UUID.fromString(rs.getString("minecraft_uuid"));
+                ItemStack[] items = ItemSerialization.fromBase64(rs.getString("loadout"));
+                dbLoadouts.put(uuid, Arrays.asList(items));
+            }
+            plugin.getLogger().info("Loaded " + dbLoadouts.size() + " PvP loadouts from database.");
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load PvP loadouts from database", e);
+        }
+    }
+
     public void saveLoadouts() {
         try {
-            loadoutsConfig.save(loadoutsFile);
+            if (loadoutsFile.exists()) {
+                loadoutsConfig.save(loadoutsFile);
+            }
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to save pvp loadouts!", e);
         }
@@ -173,9 +241,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         Inventory gui = Bukkit.createInventory(player, guiSize, title);
         
         // Load saved items
-        String path = "loadouts." + player.getUniqueId();
-        if (loadoutsConfig.contains(path)) {
-            List<?> list = loadoutsConfig.getList(path);
+        List<ItemStack> list = dbLoadouts.get(player.getUniqueId());
+        if (list != null) {
             if (list != null) {
                 for (int i = 0; i < list.size() && i < guiSize; i++) {
                     Object obj = list.get(i);
@@ -207,8 +274,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
             }
         }
         
-        loadoutsConfig.set("loadouts." + player.getUniqueId(), items);
-        saveLoadouts();
+        dbLoadouts.put(player.getUniqueId(), items);
+        saveToDatabase(player.getUniqueId(), items);
     }
 
     private void togglePvP(Player player) {
@@ -228,12 +295,10 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         player.getInventory().clear();
         
         // Give loadout
-        String path = "loadouts." + uuid;
-        if (loadoutsConfig.contains(path)) {
-            List<?> list = loadoutsConfig.getList(path);
-            if (list != null) {
-                for (int i = 0; i < list.size(); i++) {
-                    Object obj = list.get(i);
+        List<ItemStack> list = dbLoadouts.get(uuid);
+        if (list != null) {
+            for (int i = 0; i < list.size(); i++) {
+                Object obj = list.get(i);
                     if (obj instanceof ItemStack) {
                         ItemStack item = ((ItemStack) obj).clone();
                         
@@ -274,8 +339,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         List<ItemStack> pickUps = new ArrayList<>();
         
         String path = "loadouts." + uuid;
-        if (loadoutsConfig.contains(path)) {
-            List<?> rawList = loadoutsConfig.getList(path);
+        List<ItemStack> rawList = dbLoadouts.get(player.getUniqueId());
+        if (rawList != null) {
             if (rawList != null) {
                 ItemStack[] updatedLoadout = new ItemStack[rawList.size()];
                 
@@ -302,7 +367,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                     }
                 }
                 
-                loadoutsConfig.set(path, Arrays.asList(updatedLoadout));
+                dbLoadouts.put(player.getUniqueId(), Arrays.asList(updatedLoadout));
+                saveToDatabase(player.getUniqueId(), dbLoadouts.get(player.getUniqueId()));
                 saveLoadouts();
             }
         } else {
@@ -439,14 +505,14 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                 }
                 
                 // Erase their pristine kit from Vault to prevent farming
-                loadoutsConfig.set("loadouts." + player.getUniqueId(), null);
+                dbLoadouts.remove(player.getUniqueId());
+                saveToDatabase(player.getUniqueId(), null);
                 saveLoadouts();
                 
             } else if (mechanic.equalsIgnoreCase("DROP_ORIGINAL")) {
                 // Drop the pristine kit from their Vault directly
-                String path = "loadouts." + player.getUniqueId();
-                if (loadoutsConfig.contains(path)) {
-                    List<?> list = loadoutsConfig.getList(path);
+                List<ItemStack> list = dbLoadouts.get(player.getUniqueId());
+        if (list != null) {
                     if (list != null) {
                         for (Object obj : list) {
                             if (obj instanceof ItemStack && ((ItemStack) obj).getType() != Material.AIR) {
@@ -462,7 +528,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
                 event.getDrops().removeIf(this::isPvPItem);
                 
                 // Erase their pristine kit from Vault since it was dropped
-                loadoutsConfig.set(path, null);
+                dbLoadouts.remove(player.getUniqueId());
+                saveToDatabase(player.getUniqueId(), null);
                 saveLoadouts();
             } else {
                 // Failsafe: strip tags from drops so we don't leak tagged items
