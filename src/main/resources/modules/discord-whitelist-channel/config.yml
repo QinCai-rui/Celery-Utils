@@ -13,6 +13,13 @@ channel-id: 0
 # Maximum number of players a single Discord user can whitelist (default: 1)
 max-players-per-user: 1
 
+# UUID type to whitelist.
+# AUTO = Let the server decide based on its online-mode setting
+# OFFLINE = Force offline/cracked UUID
+# ONLINE = Force Mojang/premium UUID
+# BOTH = Whitelist both offline and online UUIDs
+uuid-type: "AUTO"
+
 # Role requirement configuration
 role-requirement:
   # Set to true if only users with a specific role can use this feature

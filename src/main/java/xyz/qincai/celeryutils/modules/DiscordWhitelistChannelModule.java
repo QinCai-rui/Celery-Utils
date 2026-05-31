@@ -18,10 +18,20 @@ import xyz.qincai.celeryutils.api.CeleryModule;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
@@ -46,6 +56,7 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
     private int maxPlayersPerUser;
     private boolean requiresRole;
     private String requiredRoleId;
+    private String uuidType;
     
     private final Map<Long, Integer> userWhitelistCount = new ConcurrentHashMap<>();
 
@@ -207,19 +218,51 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
 
     private String executeWhitelistCommand(String username) {
         try {
-            // Retrieve OfflinePlayer on the current JDA thread context.
-            // Bukkit.getOfflinePlayer performs a Mojang API lookup which will block.
-            // Doing it here off the main thread avoids server lag!
-            org.bukkit.OfflinePlayer player = Bukkit.getOfflinePlayer(username);
+            List<org.bukkit.OfflinePlayer> targets = new ArrayList<>();
+            
+            if ("AUTO".equals(uuidType)) {
+                // Retrieve OfflinePlayer on the current JDA thread context.
+                // Bukkit.getOfflinePlayer performs a Mojang API lookup which will block.
+                // Doing it here off the main thread avoids server lag!
+                targets.add(Bukkit.getOfflinePlayer(username));
+            } else {
+                if ("OFFLINE".equals(uuidType) || "BOTH".equals(uuidType)) {
+                    UUID offlineUUID = UUID.nameUUIDFromBytes(("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8));
+                    targets.add(Bukkit.getOfflinePlayer(offlineUUID));
+                }
+                
+                if ("ONLINE".equals(uuidType) || "BOTH".equals(uuidType)) {
+                    UUID onlineUUID = fetchOnlineUUID(username);
+                    if (onlineUUID != null) {
+                        targets.add(Bukkit.getOfflinePlayer(onlineUUID));
+                    } else if ("ONLINE".equals(uuidType)) {
+                        return "Could not find a premium Mojang account for " + username;
+                    }
+                }
+            }
 
-            if (player.isWhitelisted()) {
+            if (targets.isEmpty()) {
+                return "Failed to resolve any UUIDs for " + username;
+            }
+
+            boolean allWhitelisted = true;
+            for (org.bukkit.OfflinePlayer p : targets) {
+                if (!p.isWhitelisted()) {
+                    allWhitelisted = false;
+                    break;
+                }
+            }
+
+            if (allWhitelisted) {
                 return "Player is already whitelisted";
             }
 
             // Execute the actual state change safely on the main thread
             try {
                 Bukkit.getScheduler().callSyncMethod(plugin, () -> {
-                    player.setWhitelisted(true);
+                    for (org.bukkit.OfflinePlayer p : targets) {
+                        p.setWhitelisted(true);
+                    }
                     return null;
                 }).get();
                 return "Added " + username + " to whitelist";
@@ -236,11 +279,33 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         }
     }
 
+    private UUID fetchOnlineUUID(String username) {
+        try {
+            URL url = new URL("https://api.mojang.com/users/profiles/minecraft/" + username);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            
+            if (connection.getResponseCode() == 200) {
+                InputStreamReader reader = new InputStreamReader(connection.getInputStream());
+                JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
+                String id = jsonObject.get("id").getAsString();
+                String uuidStr = id.replaceFirst("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5");
+                return UUID.fromString(uuidStr);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Error fetching Mojang UUID for " + username, e);
+        }
+        return null;
+    }
+
     private void loadSettings(FileConfiguration config) {
         this.channelId = config.getLong("channel-id", 0L);
         this.maxPlayersPerUser = config.getInt("max-players-per-user", 1);
         this.requiresRole = config.getBoolean("role-requirement.enabled", false);
         this.requiredRoleId = config.getString("role-requirement.role-id", "");
+        this.uuidType = config.getString("uuid-type", "AUTO").toUpperCase();
     }
 
     private void loadWhitelistCounts() {
