@@ -32,6 +32,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.GsonBuilder;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
@@ -254,6 +257,9 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             }
 
             if (allWhitelisted) {
+                for (org.bukkit.OfflinePlayer p : targets) {
+                    ensureWhitelistEntryName(p.getUniqueId(), username);
+                }
                 return "Player is already whitelisted";
             }
 
@@ -262,6 +268,7 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                 Bukkit.getScheduler().callSyncMethod(plugin, () -> {
                     for (org.bukkit.OfflinePlayer p : targets) {
                         p.setWhitelisted(true);
+                        ensureWhitelistEntryName(p.getUniqueId(), username);
                     }
                     return null;
                 }).get();
@@ -298,6 +305,55 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             plugin.getLogger().log(Level.WARNING, "Error fetching Mojang UUID for " + username, e);
         }
         return null;
+    }
+
+    private void ensureWhitelistEntryName(UUID uuid, String username) {
+        try {
+            File whitelistFile = new File(Bukkit.getWorldContainer(), "whitelist.json");
+            if (!whitelistFile.exists()) {
+                return;
+            }
+
+            JsonElement parsed = JsonParser.parseString(Files.readString(whitelistFile.toPath(), StandardCharsets.UTF_8));
+            if (!parsed.isJsonArray()) {
+                return;
+            }
+
+            JsonArray entries = parsed.getAsJsonArray();
+            boolean updated = false;
+
+            for (JsonElement element : entries) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+
+                JsonObject obj = element.getAsJsonObject();
+                if (!obj.has("uuid")) {
+                    continue;
+                }
+
+                String entryUuid = obj.get("uuid").getAsString();
+                if (!uuid.toString().equalsIgnoreCase(entryUuid)) {
+                    continue;
+                }
+
+                String currentName = obj.has("name") && !obj.get("name").isJsonNull() ? obj.get("name").getAsString() : "";
+                if (currentName.isBlank()) {
+                    obj.addProperty("name", username);
+                    updated = true;
+                }
+            }
+
+            if (updated) {
+                Files.writeString(
+                        whitelistFile.toPath(),
+                        new GsonBuilder().setPrettyPrinting().create().toJson(entries),
+                        StandardCharsets.UTF_8
+                );
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Failed to update whitelist.json name for " + username, e);
+        }
     }
 
     private void loadSettings(FileConfiguration config) {
