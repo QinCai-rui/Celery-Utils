@@ -108,6 +108,16 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
             return false;
         }
 
+        PluginCommand gmCommand = plugin.getCommand("gm");
+        if (gmCommand == null) {
+            plugin.getLogger().warning("GM command is missing in plugin.yml");
+            return false;
+        }
+
+        gmCommand.setExecutor(this);
+        gmCommand.setTabCompleter(this);
+
+
         afkCommand.setExecutor(this);
         afkCommand.setTabCompleter(this);
         killallCommand.setExecutor(this);
@@ -485,6 +495,9 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         if (command.getName().equalsIgnoreCase("afk")) {
             return Collections.emptyList();
         }
+        if (command.getName().equalsIgnoreCase("gm")) {
+            return partialMatch(args[0], List.of("0","1","2","3","survival","creative","adventure","spectator"));
+        }
         if (!command.getName().equalsIgnoreCase("killall")) {
             return Collections.emptyList();
         }
@@ -505,10 +518,6 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
                 worlds.add(world.getName());
             }
             return partialMatch(args[1], worlds);
-        }
-
-        if (command.getName().equalsIgnoreCase("gm")) {
-            return partialMatch(args[0], List.of("0","1","2","3","survival","creative","adventure","spectator"));
         }
 
         return Collections.emptyList();
