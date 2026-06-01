@@ -229,7 +229,7 @@ public final class UpdateChecker {
             state = new State(false, currentVersion, "", "", ex.getMessage());
             plugin.getLogger().warning("Update check failed: invalid URL configured");
             return UpdateResult.ERROR;
-        } return UpdateResult.ERROR;
+        }
     }
 
     private static String findFirstGroup(Pattern pattern, String text) {
