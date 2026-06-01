@@ -1,0 +1,32 @@
+# AFK Module Configuration
+# Settings for the automatic AFK detection system.
+
+# NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
+# SERVER ADMIN: do not touch
+config-version: 1.0
+
+afk:
+  # Set to false to disable the AFK system entirely.
+  enabled: true
+
+  # Seconds of inactivity before a player is marked as AFK automatically.
+  timeout-seconds: 30
+
+  # Seconds of AFK time before the player is kicked from the server.
+  # Set to -1 to never kick AFK players.
+  kick-timeout-seconds: 300
+
+  # Show an AFK prefix next to the player's name in the TAB list.
+  tab-placeholder-enabled: true
+
+  # The prefix shown in TAB while a player is AFK. Supports MiniMessage.
+  tab-placeholder: "<gray>[AFK]</gray> "
+
+  # Allow players to toggle AFK state manually with /afk.
+  command-enabled: true
+
+  # Permission required to toggle AFK manually.
+  command-permission: "celeryutils.afk"
+
+  # Permission that exempts players from being kicked while AFK.
+  kick-bypass-permission: "celeryutils.afk.bypass"

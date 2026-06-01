@@ -21,6 +21,7 @@ This plugin has a modular design that allows for specific modules to be enabled 
 - **Discord Whitelist Channel**: manages Minecraft server whitelist requests through a Discord channel.
 - **Economy Permissions**: grants permissions based on a player's balance or lets permissions be purchased using the economy.
 - **Death Penalty**: applies configurable penalties on death, such as item loss or economy deductions. Useful for servers with `keep_inventory` on to add consequences to dying.
+- **AFK**: supports manual `/afk`, automatic AFK detection, configurable auto-kick timeout, and AFK TAB placeholder formatting.
 
 ## HOW TO - server admins
 
