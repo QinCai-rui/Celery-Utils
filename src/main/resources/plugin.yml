@@ -28,7 +28,6 @@ commands:
     description: Remove entities by category or type
     usage: /killall <selector|entity_type> [world]
     permission: celeryutils.killall
-    commands:
   gm:
     description: Quick gamemode switch
     usage: /gm <mode>
