@@ -302,7 +302,7 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
 
     private Predicate<Entity> resolveFilter(String target) {
         return switch (target) {
-            case "items", "item", "drops", "dropped_items" -> entity -> entity instanceof Item;
+            case "items", "item", "drop", "drops", "dropped_items" -> entity -> entity instanceof Item;
             case "hostile", "hostiles", "monster", "monsters" -> entity -> entity instanceof Monster;
             case "animal", "animals", "passive", "passives" -> entity -> entity instanceof Animals;
             case "villager", "villagers" -> entity -> entity instanceof Villager || entity instanceof WanderingTrader;
@@ -420,9 +420,12 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
             }
 
             if (config.getBoolean("afk.tab-placeholder-enabled", true)) {
-                String original = player.getPlayerListName();
+                String original = originalTabNames.get(uuid);
                 if (original == null || original.isBlank()) {
-                    original = player.getName();
+                    original = player.getPlayerListName();
+                    if (original == null || original.isBlank()) {
+                        original = player.getName();
+                    }
                 }
                 originalTabNames.put(uuid, original);
                 String prefix = miniMessageToLegacy(config.getString("afk.tab-placeholder", "<gray>[AFK]</gray> "));
@@ -439,8 +442,6 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         String previousName = originalTabNames.remove(uuid);
         if (previousName != null) {
             player.setPlayerListName(previousName);
-        } else {
-            player.setPlayerListName(player.getName());
         }
     }
 
