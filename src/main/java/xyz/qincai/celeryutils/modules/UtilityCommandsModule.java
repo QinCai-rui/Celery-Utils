@@ -163,8 +163,8 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
             return;
         }
 
-        int timeoutSeconds = Math.max(1, config.getInt("afk.timeout-seconds", 300));
-        int kickTimeoutSeconds = config.getInt("afk.kick-timeout-seconds", -1);
+        int timeoutSeconds = Math.max(1, config.getInt("afk.timeout-seconds", 30));
+        int kickTimeoutSeconds = config.getInt("afk.kick-timeout-seconds", 300);
         String kickBypass = config.getString("afk.kick-bypass-permission", "celeryutils.afk.bypass");
         String kickMessage = ChatColor.translateAlternateColorCodes('&', config.getString("messages.afk-kick", "&cKicked for being AFK too long."));
 
@@ -206,6 +206,10 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
     private boolean handleAfkCommand(CommandSender sender) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§cOnly players can use /afk.");
+            return true;
+        }
+        if (!config.getBoolean("afk.enabled", true)) {
+            player.sendMessage(color(config.getString("messages.afk-command-disabled", "&cAFK command is disabled.")));
             return true;
         }
         if (!config.getBoolean("afk.command-enabled", true)) {

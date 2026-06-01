@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 1.0
+config-version: 1.1
 
 afk:
   # Set to false to disable the AFK system entirely.
@@ -17,11 +17,11 @@ afk:
   kick-bypass-permission: "celeryutils.afk.bypass"
 
   # Seconds of inactivity before a player is marked as AFK automatically.
-  timeout-seconds: 300
+  timeout-seconds: 30
 
   # Seconds of AFK time before the player is kicked from the server.
   # Set to -1 to never kick AFK players.
-  kick-timeout-seconds: 900
+  kick-timeout-seconds: 300
 
   # Show an AFK prefix next to the player's name in the TAB list.
   tab-placeholder-enabled: true
