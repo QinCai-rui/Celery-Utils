@@ -417,9 +417,33 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§7Current status: §f" + updateChecker.statusSummary());
                 sender.sendMessage("§7Pinging for new updates...");
 
-                updateChecker.runCheckAsync(() -> {
-                    sender.sendMessage("§aUpdate check completed.");
-                    sender.sendMessage("§7Result: §f" + updateChecker.statusSummary());
+                updateChecker.runCheckAsync(result -> {
+                    switch (result) {
+                        case UP_TO_DATE ->
+                                sender.sendMessage(
+                                        "§aCeleryUtils is already up to date."
+                                );
+
+                        case UPDATE_AVAILABLE ->
+                                sender.sendMessage(
+                                        "§eUpdate found, but auto-download is disabled."
+                                );
+
+                        case UPDATE_DOWNLOADED ->
+                                sender.sendMessage(
+                                        "§aUpdate downloaded successfully! Restart the server to apply it."
+                                );
+
+                        case DOWNLOAD_FAILED ->
+                                sender.sendMessage(
+                                        "§cUpdate found, but download failed. Check console."
+                                );
+
+                        case ERROR ->
+                                sender.sendMessage(
+                                        "§cUpdate check failed. Check console."
+                                );
+                    }
                 });
 
                 return true;

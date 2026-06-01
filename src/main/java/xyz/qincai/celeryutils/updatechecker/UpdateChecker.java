@@ -42,7 +42,6 @@ public final class UpdateChecker {
         ConfigurationSection cfg = plugin.getConfig().getConfigurationSection("update-checker");
         if (cfg == null || !cfg.getBoolean("enabled", true)) {
             state = State.none();
-            return;
         }
 
         runCheckAsync();
@@ -52,7 +51,7 @@ public final class UpdateChecker {
             long intervalTicks = Math.max(20L, intervalMinutes * 60L * 20L);
             repeatingTask = Bukkit.getScheduler().runTaskTimerAsynchronously(
                     plugin,
-                    this::checkNow,
+                    () -> checkNow(),
                     intervalTicks,
                     intervalTicks
             );
@@ -79,18 +78,23 @@ public final class UpdateChecker {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, this::checkNow);
     }
 
-    public void runCheckAsync(Runnable completion) {
-        ConfigurationSection cfg = plugin.getConfig().getConfigurationSection("update-checker");
+    public void runCheckAsync(
+            java.util.function.Consumer<UpdateResult> callback
+    ) {
+        ConfigurationSection cfg =
+                plugin.getConfig()
+                        .getConfigurationSection("update-checker");
+
         if (cfg == null || !cfg.getBoolean("enabled", true)) {
             return;
         }
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            checkNow();
+            UpdateResult result = checkNow();
 
-            if (completion != null) {
-                Bukkit.getScheduler().runTask(plugin, completion);
-            }
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                callback.accept(result);
+            });
         });
     }
 
@@ -138,13 +142,15 @@ public final class UpdateChecker {
         return cfg.getBoolean("notify-ops-without-permission", true) && player.isOp();
     }
 
-    private void checkNow() {
+    private UpdateResult checkNow() {
         ConfigurationSection cfg = plugin.getConfig().getConfigurationSection("update-checker");
-        if (cfg == null) return;
+        if (cfg == null) return UpdateResult.ERROR;
         
         String apiUrl = cfg.getString("api-url");
-        if (apiUrl == null || apiUrl.isBlank()) return;
-        
+        if (apiUrl == null || apiUrl.isBlank()) {
+            return UpdateResult.ERROR;
+        }
+
         long timeoutMillis = cfg.getLong("timeout-millis", 10000L);
         boolean autoDownload = cfg.getBoolean("auto-download", true);
 
@@ -161,7 +167,7 @@ public final class UpdateChecker {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 state = new State(false, currentVersion, "", "", "HTTP " + response.statusCode());
                 plugin.getLogger().warning("Update check failed with HTTP status " + response.statusCode());
-                return;
+                return UpdateResult.ERROR;
             }
 
             String body = response.body();
@@ -170,7 +176,7 @@ public final class UpdateChecker {
             if (latestVersion.isBlank()) {
                 state = new State(false, currentVersion, "", downloadUrl, "missing tag_name in response");
                 plugin.getLogger().warning("Update check failed: missing tag_name in response body");
-                return;
+                return UpdateResult.ERROR;
             }
 
             boolean updateAvailable = !currentVersion.equalsIgnoreCase(latestVersion);
@@ -182,21 +188,34 @@ public final class UpdateChecker {
 
                 if (targetFile.exists()) {
                     plugin.getLogger().info("CeleryUtils update (" + latestVersion + ") is already downloaded and pending restart/reload.");
+                    return UpdateResult.UPDATE_DOWNLOADED;
                 } else {
                     plugin.getLogger().warning("New CeleryUtils version available: " + currentVersion + " -> " + latestVersion +
                             (downloadUrl.isBlank() ? "" : " (" + downloadUrl + ")"));
                     
                     if (autoDownload) {
-                        String assetUrl = findFirstGroup(ASSET_DOWNLOAD_URL_PATTERN, body);
+                        String assetUrl = findFirstGroup(
+                                ASSET_DOWNLOAD_URL_PATTERN,
+                                body
+                        );
+
                         if (!assetUrl.isBlank()) {
-                            downloadUpdate(assetUrl, latestVersion);
-                        } else {
-                            plugin.getLogger().warning("Auto-download failed: no .jar asset found in release.");
+                            boolean success =
+                                    downloadUpdate(assetUrl, latestVersion);
+
+                            return success
+                                    ? UpdateResult.UPDATE_DOWNLOADED
+                                    : UpdateResult.DOWNLOAD_FAILED;
                         }
+
+                        return UpdateResult.DOWNLOAD_FAILED;
                     }
+
+                    return UpdateResult.UPDATE_AVAILABLE;
                 }
             } else {
                 plugin.getLogger().info("CeleryUtils is up-to-date (" + currentVersion + ")");
+                return UpdateResult.UP_TO_DATE;
             }
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {
@@ -204,10 +223,13 @@ public final class UpdateChecker {
             }
             state = new State(false, currentVersion, "", "", ex.getMessage());
             plugin.getLogger().warning("Update check failed: " + ex.getMessage());
+            return UpdateResult.ERROR;
         } catch (IllegalArgumentException ex) {
             state = new State(false, currentVersion, "", "", ex.getMessage());
             plugin.getLogger().warning("Update check failed: invalid URL configured");
+            return UpdateResult.ERROR;
         }
+        return UpdateResult.ERROR;
     }
 
     private static String findFirstGroup(Pattern pattern, String text) {
@@ -215,26 +237,49 @@ public final class UpdateChecker {
         return matcher.find() ? matcher.group(1) : "";
     }
 
-    private void downloadUpdate(String url, String version) {
+    private boolean downloadUpdate(String url, String version) {
         try {
             File updateFolder = plugin.getServer().getUpdateFolderFile();
+
             if (!updateFolder.exists() && !updateFolder.mkdirs()) {
                 plugin.getLogger().warning("Could not create update folder.");
-                return;
+                return false;
             }
-            
-            Path targetFile = new File(updateFolder, "CeleryUtils-" + version + ".jar").toPath();
+
+            Path targetFile = new File(
+                    updateFolder,
+                    "CeleryUtils-" + version + ".jar"
+            ).toPath();
+
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .header("User-Agent", "CeleryUtils-Updater")
                     .timeout(Duration.ofMinutes(1))
                     .GET()
                     .build();
-            
+
             plugin.getLogger().info("Downloading auto-update from " + url + "...");
-            httpClient.send(request, HttpResponse.BodyHandlers.ofFile(targetFile));
-            plugin.getLogger().info("Update downloaded successfully to " + targetFile.toString() + "! It will be applied on the next server restart/reload.");
+
+            HttpResponse<Path> response =
+                    httpClient.send(
+                            request,
+                            HttpResponse.BodyHandlers.ofFile(targetFile)
+                    );
+
+            return response.statusCode() >= 200
+                    && response.statusCode() < 300;
+
+            plugin.getLogger().info(
+                    "Update downloaded successfully to "
+                            + targetFile
+                            + "! It will be applied on the next server restart/reload."
+            );
+
         } catch (Exception ex) {
-            plugin.getLogger().warning("Failed to auto-download update: " + ex.getMessage());
+            plugin.getLogger().warning(
+                    "Failed to auto-download update: " + ex.getMessage()
+            );
+
+            return false;
         }
     }
 
@@ -259,5 +304,12 @@ public final class UpdateChecker {
         private static State none() {
             return new State(false, "", "", "", null);
         }
+    }
+    public enum UpdateResult {
+        UP_TO_DATE,
+        UPDATE_AVAILABLE,
+        UPDATE_DOWNLOADED,
+        DOWNLOAD_FAILED,
+        ERROR
     }
 }
