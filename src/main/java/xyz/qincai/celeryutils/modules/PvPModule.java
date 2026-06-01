@@ -8,6 +8,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -38,7 +39,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class PvPModule implements CeleryModule, Listener, CommandExecutor {
+public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCompleter {
 
     private final CeleryUtils plugin;
     private FileConfiguration config;
@@ -116,6 +117,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
         PluginCommand pvpCommand = plugin.getCommand("pvp");
         if (pvpCommand != null) {
             pvpCommand.setExecutor(this);
+            pvpCommand.setTabCompleter(this);
         } else {
             plugin.getLogger().warning("PvP command not found in plugin.yml!");
             return false;
@@ -229,6 +231,28 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor {
 
         player.sendMessage(ChatColor.RED + "Usage: /pvp <gear|toggle>");
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        if (!command.getName().equalsIgnoreCase("pvp")) {
+            return Collections.emptyList();
+        }
+        if (args.length == 1) {
+            String token = args[0].toLowerCase();
+            List<String> options = Arrays.asList("gear", "toggle");
+            if (token.isEmpty()) {
+                return options;
+            }
+            List<String> matches = new ArrayList<>();
+            for (String option : options) {
+                if (option.startsWith(token)) {
+                    matches.add(option);
+                }
+            }
+            return matches;
+        }
+        return Collections.emptyList();
     }
 
     private void openGearGUI(Player player) {
