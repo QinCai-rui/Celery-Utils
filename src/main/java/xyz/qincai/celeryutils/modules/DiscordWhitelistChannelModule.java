@@ -12,6 +12,11 @@ import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerLoginEvent;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import xyz.qincai.celeryutils.CeleryUtils;
 import xyz.qincai.celeryutils.api.CeleryModule;
@@ -24,8 +29,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -42,8 +49,9 @@ import java.util.regex.Pattern;
 /**
  * Discord Whitelist Channel Module.
  * Listens for messages in a Discord channel and whitelists players on the Minecraft server.
+ * Also listens for player joins to update whitelist.json with proper names and clean up duplicates.
  */
-public class DiscordWhitelistChannelModule extends ListenerAdapter implements CeleryModule {
+public class DiscordWhitelistChannelModule extends ListenerAdapter implements CeleryModule, Listener {
 
     private static final String CONFIG_PATH = "modules/discord-whitelist-channel/config.yml";
     private static final Pattern USERNAME_PATTERN = Pattern.compile("\\b([a-zA-Z0-9_]{3,16})\\b");
@@ -62,6 +70,9 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
     
     private final Map<Long, Integer> userWhitelistCount = new ConcurrentHashMap<>();
     private final Object whitelistFileLock = new Object();
+    
+    // Track recently processed players to avoid duplicate processing
+    private final Set<UUID> recentlyProcessedPlayers = ConcurrentHashMap.newKeySet();
 
     public DiscordWhitelistChannelModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -98,6 +109,9 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                 return false;
             }
 
+            // Register Bukkit listener for player login events
+            Bukkit.getPluginManager().registerEvents(this, plugin);
+
             jda = JDABuilder.createDefault(token)
                     .enableIntents(
                             GatewayIntent.GUILD_MESSAGES,
@@ -121,6 +135,14 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
     @Override
     public void disable() {
         enabled = false;
+        
+        // Unregister Bukkit listeners
+        try {
+            org.bukkit.event.HandlerList.unregisterAll((Listener) this);
+        } catch (Exception e) {
+            // Ignore
+        }
+        
         if (jda != null) {
             try {
                 jda.shutdownNow();
@@ -131,8 +153,8 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                 // Ignore
             }
         }
-        // JDA shutdown above; this class does not register Bukkit listeners so nothing to unregister
         userWhitelistCount.clear();
+        recentlyProcessedPlayers.clear();
     }
 
     @Override
@@ -143,6 +165,137 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
     @Override
     public void onReady(@NotNull ReadyEvent event) {
         plugin.getLogger().info("Discord Whitelist Channel bot is ready!");
+    }
+
+    /**
+     * Listen for player login events to update whitelist.json with player names
+     * and clean up duplicate UUID entries.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerLogin(PlayerLoginEvent event) {
+        if (!isEnabled()) {
+            return;
+        }
+        
+        UUID playerUUID = event.getPlayer().getUniqueId();
+        String playerName = event.getPlayer().getName();
+        
+        // Skip if we've recently processed this player to avoid duplicate work
+        if (!recentlyProcessedPlayers.add(playerUUID)) {
+            return;
+        }
+        
+        // Process asynchronously to avoid blocking the login thread
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                try {
+                    updateWhitelistEntryName(playerUUID, playerName);
+                    // Clean up after a delay to allow for re-login
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> recentlyProcessedPlayers.remove(playerUUID), 1200L); // 1 minute
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to update whitelist entry for " + playerName, e);
+                }
+            }
+        }.runTaskAsynchronously(plugin);
+    }
+
+    /**
+     * Updates the whitelist.json file with the player's name and removes duplicate entries.
+     */
+    private void updateWhitelistEntryName(UUID playerUUID, String playerName) {
+        try {
+            File whitelistFile = new File(Bukkit.getWorldContainer(), "whitelist.json");
+            if (!whitelistFile.exists()) {
+                return;
+            }
+
+            synchronized (whitelistFileLock) {
+                JsonElement parsed;
+                try (BufferedReader reader = Files.newBufferedReader(whitelistFile.toPath(), StandardCharsets.UTF_8)) {
+                    parsed = JsonParser.parseReader(reader);
+                }
+                if (!parsed.isJsonArray()) return;
+
+                JsonArray entries = parsed.getAsJsonArray();
+                boolean updated = false;
+                
+                // We'll build a new array to avoid modifying while iterating
+                JsonArray cleanedEntries = new JsonArray();
+                boolean foundTargetEntry = false;
+                
+                for (JsonElement element : entries) {
+                    if (!element.isJsonObject()) {
+                        cleanedEntries.add(element);
+                        continue;
+                    }
+
+                    JsonObject obj = element.getAsJsonObject();
+                    if (!obj.has("uuid")) {
+                        cleanedEntries.add(obj);
+                        continue;
+                    }
+
+                    UUID entryUuid;
+                    try {
+                        entryUuid = UUID.fromString(obj.get("uuid").getAsString());
+                    } catch (IllegalArgumentException ignored) {
+                        cleanedEntries.add(obj);
+                        continue;
+                    }
+
+                    // If this is the target entry, update it
+                    if (entryUuid.equals(playerUUID)) {
+                        JsonElement nameElement = obj.get("name");
+                        String currentName = nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() : "";
+                        
+                        // Update name if it's different or empty
+                        if (!currentName.equals(playerName)) {
+                            obj.addProperty("name", playerName);
+                            updated = true;
+                            plugin.getLogger().info("Updated whitelist entry for " + playerName + " (" + playerUUID + ")");
+                        }
+                        
+                        cleanedEntries.add(obj);
+                        foundTargetEntry = true;
+                    } else {
+                        // Keep entries that don't match the target UUID
+                        cleanedEntries.add(obj);
+                    }
+                }
+
+                // If we didn't find the entry, add it
+                if (!foundTargetEntry) {
+                    JsonObject newEntry = new JsonObject();
+                    newEntry.addProperty("uuid", playerUUID.toString());
+                    newEntry.addProperty("name", playerName);
+                    cleanedEntries.add(newEntry);
+                    updated = true;
+                    plugin.getLogger().info("Added missing whitelist entry for " + playerName + " (" + playerUUID + ")");
+                }
+
+                if (updated) {
+                    Files.writeString(
+                            whitelistFile.toPath(),
+                            new GsonBuilder().setPrettyPrinting().create().toJson(cleanedEntries),
+                            StandardCharsets.UTF_8
+                    );
+                    
+                    // Reload the whitelist
+                    Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                        try {
+                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "whitelist reload");
+                            plugin.getLogger().info("Reloaded whitelist after updating entry for " + playerName);
+                        } catch (Exception e) {
+                            plugin.getLogger().log(Level.WARNING, "Failed to reload whitelist", e);
+                        }
+                        return null;
+                    });
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Failed to update whitelist.json for " + playerName, e);
+        }
     }
 
     @Override
@@ -224,9 +377,6 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             List<org.bukkit.OfflinePlayer> targets = new ArrayList<>();
             
             if ("AUTO".equals(uuidType)) {
-                // Retrieve OfflinePlayer on the current JDA thread context.
-                // Bukkit.getOfflinePlayer performs a Mojang API lookup which will block.
-                // Doing it here off the main thread avoids server lag!
                 targets.add(Bukkit.getOfflinePlayer(username));
             } else {
                 if ("OFFLINE".equals(uuidType) || "BOTH".equals(uuidType)) {
