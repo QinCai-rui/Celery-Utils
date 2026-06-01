@@ -42,6 +42,7 @@ public final class UpdateChecker {
         ConfigurationSection cfg = plugin.getConfig().getConfigurationSection("update-checker");
         if (cfg == null || !cfg.getBoolean("enabled", true)) {
             state = State.none();
+            return;
         }
 
         runCheckAsync();
@@ -265,14 +266,19 @@ public final class UpdateChecker {
                             HttpResponse.BodyHandlers.ofFile(targetFile)
                     );
 
-            return response.statusCode() >= 200
-                    && response.statusCode() < 300;
+            boolean success =
+                    response.statusCode() >= 200
+                            && response.statusCode() < 300;
 
-            plugin.getLogger().info(
-                    "Update downloaded successfully to "
-                            + targetFile
-                            + "! It will be applied on the next server restart/reload."
-            );
+            if (success) {
+                plugin.getLogger().info(
+                        "Update downloaded successfully to "
+                                + targetFile
+                                + "! It will be applied on the next server restart."
+                );
+            }
+
+            return success;
 
         } catch (Exception ex) {
             plugin.getLogger().warning(
