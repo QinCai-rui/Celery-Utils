@@ -17,11 +17,15 @@ import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
 import xyz.qincai.celeryutils.modules.DeathPenaltyModule;
 import xyz.qincai.celeryutils.modules.PvPModule;
 import xyz.qincai.celeryutils.modules.InventoryTotemModule;
+import xyz.qincai.celeryutils.modules.UtilityCommandsModule;
 import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 import xyz.qincai.celeryutils.database.DatabaseManager;
 import xyz.qincai.celeryutils.logging.NamespaceLogCleaner;
 
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.io.File;
@@ -66,6 +70,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
         upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
         upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
+        upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
 
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize(getConfig().getConfigurationSection("database"));
@@ -84,6 +89,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             File legacyTarget = null;
             if ("modules/discord-link/config.yml".equals(resourcePath)) {
                 legacyTarget = new File(getDataFolder(), "modules/discord-sync/config.yml");
+            } else if ("modules/utility-tools/config.yml".equals(resourcePath)) {
+                legacyTarget = new File(getDataFolder(), "modules/afk/config.yml");
             }
 
             if (!targetFile.exists() && legacyTarget != null && legacyTarget.exists()) {
@@ -277,6 +284,16 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 getLogger().warning("✗ Failed to load module: " + totemModule.getName());
             }
         }
+
+        if (isModuleEnabled("modules.utility-tools.enabled", "modules.afk.enabled")) {
+            CeleryModule utilityToolsModule = new UtilityCommandsModule(this);
+            if (utilityToolsModule.initialize()) {
+                modules.put(utilityToolsModule.getName(), utilityToolsModule);
+                getLogger().info("✓ Loaded module: " + utilityToolsModule.getName());
+            } else {
+                getLogger().warning("✗ Failed to load module: " + utilityToolsModule.getName());
+            }
+        }
     }
 
     public CeleryModule getModule(String name) {
@@ -438,6 +455,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
             upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
             upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
+            upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
 
             // Reload plugin config again after upgrade so the latest values are loaded.
             reloadConfig();
@@ -449,6 +467,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             boolean wantDeath = getConfig().getBoolean("modules.death-penalty.enabled", true);
             boolean wantPvp = getConfig().getBoolean("modules.pvp-module.enabled", true);
             boolean wantTotem = getConfig().getBoolean("modules.inventory-totem.enabled", true);
+            boolean wantUtilityTools = isModuleEnabled("modules.utility-tools.enabled", "modules.afk.enabled");
 
             reloadModule("Discord Link", wantDiscord, () -> new DiscordLinkModule(this));
             reloadModule("Discord Whitelist Channel", wantWhitelist, () -> new DiscordWhitelistChannelModule(this));
@@ -456,6 +475,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             reloadModule("Death Penalty", wantDeath, () -> new DeathPenaltyModule(this));
             reloadModule("pvp-module", wantPvp, () -> new PvPModule(this));
             reloadModule("inventory-totem", wantTotem, () -> new InventoryTotemModule(this));
+            reloadModule("utility-tools", wantUtilityTools, () -> new UtilityCommandsModule(this));
 
             sender.sendMessage("§aReload complete.");
         } catch (Exception e) {
@@ -512,8 +532,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             sender.sendMessage("§f/cu update §7- §7Check for plugin updates");
             sender.sendMessage("§f/cu reload §7- §7Reload configs and (re)load modules if changed");
         }
-        sender.sendMessage("§7Modules: §aDiscord Link, Discord Whitelist Channel, Economy Permissions, Death Penalty, PvP Module, Inventory Totem");
-        sender.sendMessage("§7For more details use §b/cu help modules §7or §b/cu help [link|ecoperm|whitelist|admin]§7.");
+        sender.sendMessage("§7Modules: §aDiscord Link, Discord Whitelist Channel, Economy Permissions, Death Penalty, PvP Module, Inventory Totem, Utility Tools");
+        sender.sendMessage("§7For more details use §b/cu help modules §7or §b/cu help [link|ecoperm|whitelist|utility|admin]§7.");
     }
 
     private void sendHelpTopic(CommandSender sender, String topic) {
@@ -547,6 +567,12 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§fDeath Penalty §7- §7Apply XP and/or money penalties when players die with keepInventory enabled.");
                 sender.sendMessage("§fPvP Module §7- §7Enable toggleable PvP mode with saved gear loadouts via /pvp.");
                 sender.sendMessage("§fInventory Totem §7- §7Use a Totem of Undying from inventory automatically when you would die.");
+                sender.sendMessage("§fUtility Tools §7- §7Includes /afk and /killall with auto AFK detection and cleanup controls.");
+            }
+            case "utility", "afk", "killall" -> {
+                sender.sendMessage("§b§lCeleryUtils §7- §fUtility Tools Help");
+                sender.sendMessage("§f/afk §7- §7Toggle your AFK state manually");
+                sender.sendMessage("§f/killall <target> [world] §7- §7Remove entities by selector or exact type");
             }
             case "status", "version" -> {
                 sender.sendMessage("§b§lCeleryUtils §7- §fStatus Help");
@@ -564,5 +590,51 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
             default -> sendHelp(sender, 1);
         }
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (!command.getName().equalsIgnoreCase("celeryutils")) {
+            return Collections.emptyList();
+        }
+
+        if (args.length == 1) {
+            List<String> subcommands = new ArrayList<>();
+            subcommands.add("help");
+            subcommands.add("status");
+            subcommands.add("link");
+            subcommands.add("ecoperm");
+            if (sender.hasPermission("celeryutils.admin")) {
+                subcommands.add("reload");
+                subcommands.add("update");
+            }
+            return partialMatch(args[0], subcommands);
+        }
+
+        if (args.length == 2) {
+            String firstArg = args[0].toLowerCase();
+            if (firstArg.equals("help")) {
+                return partialMatch(args[1], List.of("modules", "link", "whitelist", "ecoperm", "utility", "status", "admin"));
+            }
+            if (firstArg.equals("ecoperm")) {
+                return partialMatch(args[1], List.of("buy", "list"));
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<String> partialMatch(String token, List<String> options) {
+        if (token == null || token.isEmpty()) {
+            return new ArrayList<>(options);
+        }
+        String lowerToken = token.toLowerCase();
+        List<String> matches = new ArrayList<>();
+        for (String option : options) {
+            if (option.toLowerCase().startsWith(lowerToken)) {
+                matches.add(option);
+            }
+        }
+        return matches;
     }
 }

@@ -1,0 +1,53 @@
+# Utility Tools Module Configuration
+# Includes AFK automation and killall controls.
+
+# NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
+# SERVER ADMIN: do not touch
+config-version: 1.0
+
+afk:
+  # Set to false to disable the AFK system entirely.
+  enabled: true
+
+  # Allow players to toggle AFK manually with /afk.
+  command-enabled: true
+  command-permission: "celeryutils.afk"
+
+  # Permission that exempts AFK players from auto-kick.
+  kick-bypass-permission: "celeryutils.afk.bypass"
+
+  # Seconds of inactivity before a player is marked as AFK automatically.
+  timeout-seconds: 300
+
+  # Seconds of AFK time before the player is kicked from the server.
+  # Set to -1 to never kick AFK players.
+  kick-timeout-seconds: 900
+
+  # Show an AFK prefix next to the player's name in the TAB list.
+  tab-placeholder-enabled: true
+
+  # The prefix shown in TAB while a player is AFK. Supports MiniMessage.
+  tab-placeholder: "<gray>[AFK]</gray> "
+
+killall:
+  # Set to false to disable /killall command handling.
+  enabled: true
+
+  # Permission required to use /killall.
+  command-permission: "celeryutils.killall"
+
+  # If false, named living entities (custom-name mobs) are protected from /killall.
+  include-named-entities: false
+
+messages:
+  no-permission: "&cYou do not have permission to use this command."
+  afk-enabled: "&eYou are now AFK."
+  afk-disabled: "&aYou are no longer AFK."
+  afk-disabled-auto: "&aYou are no longer AFK due to activity."
+  afk-command-disabled: "&cAFK command is disabled."
+  afk-kick: "&cKicked for being AFK too long."
+  killall-disabled: "&cKillall command is disabled."
+  killall-usage: "&cUsage: /killall <selector|entity_type> [world]"
+  killall-unknown-target: "&cUnknown killall target: &f%target%"
+  killall-unknown-world: "&cUnknown world: &f%world%"
+  killall-result: "&aRemoved &f%count% &aentities for target &f%target%&a."

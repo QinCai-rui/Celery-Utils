@@ -24,6 +24,10 @@ commands:
     description: Toggle AFK status
     usage: /afk
     permission: celeryutils.afk
+  killall:
+    description: Remove entities by category or type
+    usage: /killall <selector|entity_type> [world]
+    permission: celeryutils.killall
 
 permissions:
   celeryutils.pvp:
@@ -43,4 +47,7 @@ permissions:
     default: true
   celeryutils.afk.bypass:
     description: Exempt player from AFK auto-kick
+    default: op
+  celeryutils.killall:
+    description: Permission to run /killall
     default: op
