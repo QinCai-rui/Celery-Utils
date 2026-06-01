@@ -35,6 +35,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.HashSet;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -220,19 +223,19 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                 JsonArray entries = parsed.getAsJsonArray();
                 boolean updated = false;
                 
-                // We'll build a new array to avoid modifying while iterating
-                JsonArray cleanedEntries = new JsonArray();
-                boolean foundTargetEntry = false;
+                // Build maps to detect duplicates
+                Map<UUID, JsonObject> uuidToEntry = new LinkedHashMap<>();
+                Map<String, UUID> nameToUuid = new HashMap<>();
+                Set<UUID> uuidsToRemove = new HashSet<>();
                 
+                // First pass: collect all entries and detect duplicates
                 for (JsonElement element : entries) {
                     if (!element.isJsonObject()) {
-                        cleanedEntries.add(element);
                         continue;
                     }
 
                     JsonObject obj = element.getAsJsonObject();
                     if (!obj.has("uuid")) {
-                        cleanedEntries.add(obj);
                         continue;
                     }
 
@@ -240,41 +243,68 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                     try {
                         entryUuid = UUID.fromString(obj.get("uuid").getAsString());
                     } catch (IllegalArgumentException ignored) {
-                        cleanedEntries.add(obj);
                         continue;
                     }
 
-                    // If this is the target entry, update it
+                    String entryName = obj.has("name") && !obj.get("name").isJsonNull() 
+                        ? obj.get("name").getAsString().trim() 
+                        : "";
+                    
+                    // Check if this is our target player
                     if (entryUuid.equals(playerUUID)) {
-                        JsonElement nameElement = obj.get("name");
-                        String currentName = nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() : "";
-                        
-                        // Update name if it's different or empty
-                        if (!currentName.equals(playerName)) {
-                            obj.addProperty("name", playerName);
-                            updated = true;
-                            plugin.getLogger().info("Updated whitelist entry for " + playerName + " (" + playerUUID + ")");
-                        }
-                        
-                        cleanedEntries.add(obj);
-                        foundTargetEntry = true;
-                    } else {
-                        // Keep entries that don't match the target UUID
-                        cleanedEntries.add(obj);
+                        obj.addProperty("name", playerName);
+                        updated = true;
+                        plugin.getLogger().info("Updated whitelist entry for " + playerName + " (" + playerUUID + ")");
                     }
+                    
+                    // If this entry has a name, check for duplicates
+                    if (!entryName.isEmpty()) {
+                        if (nameToUuid.containsKey(entryName.toLowerCase())) {
+                            // Found a duplicate! Keep the one with the matching UUID, or the first one
+                            UUID existingUuid = nameToUuid.get(entryName.toLowerCase());
+                            if (!existingUuid.equals(entryUuid)) {
+                                // Mark the one we want to remove (prefer keeping the one that matches our player)
+                                if (entryUuid.equals(playerUUID)) {
+                                    uuidsToRemove.add(existingUuid);
+                                    nameToUuid.put(entryName.toLowerCase(), entryUuid);
+                                } else {
+                                    uuidsToRemove.add(entryUuid);
+                                }
+                            }
+                        } else {
+                            nameToUuid.put(entryName.toLowerCase(), entryUuid);
+                        }
+                    }
+                    
+                    uuidToEntry.put(entryUuid, obj);
                 }
 
-                // If we didn't find the entry, add it
-                if (!foundTargetEntry) {
+                // If player not found, add them
+                if (!uuidToEntry.containsKey(playerUUID)) {
                     JsonObject newEntry = new JsonObject();
                     newEntry.addProperty("uuid", playerUUID.toString());
                     newEntry.addProperty("name", playerName);
-                    cleanedEntries.add(newEntry);
+                    uuidToEntry.put(playerUUID, newEntry);
                     updated = true;
                     plugin.getLogger().info("Added missing whitelist entry for " + playerName + " (" + playerUUID + ")");
                 }
 
+                // Build cleaned array, removing duplicates
+                if (!uuidsToRemove.isEmpty()) {
+                    updated = true;
+                    for (UUID uuid : uuidsToRemove) {
+                        JsonObject removed = uuidToEntry.remove(uuid);
+                        String removedName = removed != null && removed.has("name") ? removed.get("name").getAsString() : "unknown";
+                        plugin.getLogger().info("Removed duplicate whitelist entry for " + removedName + " (" + uuid + ")");
+                    }
+                }
+
                 if (updated) {
+                    JsonArray cleanedEntries = new JsonArray();
+                    for (JsonObject entry : uuidToEntry.values()) {
+                        cleanedEntries.add(entry);
+                    }
+                    
                     Files.writeString(
                             whitelistFile.toPath(),
                             new GsonBuilder().setPrettyPrinting().create().toJson(cleanedEntries),
@@ -285,7 +315,7 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                     Bukkit.getScheduler().callSyncMethod(plugin, () -> {
                         try {
                             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "whitelist reload");
-                            plugin.getLogger().info("Reloaded whitelist after updating entry for " + playerName);
+                            plugin.getLogger().info("Reloaded whitelist after cleaning up entries for " + playerName);
                         } catch (Exception e) {
                             plugin.getLogger().log(Level.WARNING, "Failed to reload whitelist", e);
                         }
