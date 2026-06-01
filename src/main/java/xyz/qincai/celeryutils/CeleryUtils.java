@@ -412,10 +412,16 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                     sender.sendMessage("§cYou do not have permission to use this command.");
                     return true;
                 }
+
                 sender.sendMessage("§b§lCeleryUtils §7- §fUpdate Checker");
                 sender.sendMessage("§7Current status: §f" + updateChecker.statusSummary());
                 sender.sendMessage("§7Pinging for new updates...");
-                updateChecker.runCheckAsync();
+
+                updateChecker.runCheckAsync(() -> {
+                    sender.sendMessage("§aUpdate check completed.");
+                    sender.sendMessage("§7Result: §f" + updateChecker.statusSummary());
+                });
+
                 return true;
             }
             case "reload" -> {

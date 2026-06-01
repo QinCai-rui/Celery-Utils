@@ -79,6 +79,21 @@ public final class UpdateChecker {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, this::checkNow);
     }
 
+    public void runCheckAsync(Runnable completion) {
+        ConfigurationSection cfg = plugin.getConfig().getConfigurationSection("update-checker");
+        if (cfg == null || !cfg.getBoolean("enabled", true)) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            checkNow();
+
+            if (completion != null) {
+                Bukkit.getScheduler().runTask(plugin, completion);
+            }
+        });
+    }
+
     public void notifyIfUpdateAvailable(Player player) {
         ConfigurationSection cfg = plugin.getConfig().getConfigurationSection("update-checker");
         if (cfg == null || !cfg.getBoolean("enabled", true) || !cfg.getBoolean("notify-on-join", true)) {
