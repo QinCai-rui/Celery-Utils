@@ -200,6 +200,9 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         if (command.getName().equalsIgnoreCase("killall")) {
             return handleKillAllCommand(sender, args);
         }
+        if (command.getName().equalsIgnoreCase("gm")) {
+            return handleGamemodeCommand(sender, args);
+        }
         return false;
     }
 
@@ -285,6 +288,37 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
                 .replace("%target%", args[0])));
         return true;
     }
+
+    private boolean handleGamemodeCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cOnly players can use /gm.");
+            return true;
+        }
+
+        if (args.length < 1) {
+            player.sendMessage("§cUsage: /gm <0|1|2|3|survival|creative|adventure|spectator>");
+            return true;
+        }
+
+        String modeArg = args[0].toLowerCase(Locale.ROOT);
+        GameMode mode;
+
+        switch (modeArg) {
+            case "0", "s", "survival" -> mode = GameMode.SURVIVAL;
+            case "1", "c", "creative" -> mode = GameMode.CREATIVE;
+            case "2", "a", "adventure" -> mode = GameMode.ADVENTURE;
+            case "3", "sp", "spectator" -> mode = GameMode.SPECTATOR;
+            default -> {
+                player.sendMessage("§cUnknown gamemode: §f" + args[0]);
+                return true;
+            }
+        }
+
+        player.setGameMode(mode);
+        player.sendMessage("§aGamemode set to §f" + mode.name().toLowerCase(Locale.ROOT));
+        return true;
+    }
+
 
     private Collection<World> resolveWorlds(CommandSender sender, String[] args) {
         if (args.length >= 2) {
@@ -471,6 +505,11 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
             }
             return partialMatch(args[1], worlds);
         }
+
+        if (command.getName().equalsIgnoreCase("gm")) {
+            return partialMatch(args[0], List.of("0","1","2","3","survival","creative","adventure","spectator"));
+        }
+
         return Collections.emptyList();
     }
 
