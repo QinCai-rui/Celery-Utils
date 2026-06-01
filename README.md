@@ -22,6 +22,8 @@ This plugin has a modular design that allows for specific modules to be enabled 
 - **Economy Permissions**: grants permissions based on a player's balance or lets permissions be purchased using the economy.
 - **Death Penalty**: applies configurable penalties on death, such as item loss or economy deductions. Useful for servers with `keep_inventory` on to add consequences to dying.
 - **Utility Tools**: includes `/afk` (manual + automatic AFK, auto-kick, TAB AFK tag) and `/killall` (clear drops/mobs by category or exact entity type).
+- **Gamemode Shortcuts**: quick gamemode switching with `/gm <mode>` (0/1/2/3/survival/creative/adventure/spectator).
+- **Totems work in inventory**: allows totems of undying to activate from the player's inventory instead of just the offhand (configurable and toggleable).
 
 ## HOW TO - server admins
 
