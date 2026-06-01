@@ -20,6 +20,14 @@ commands:
     description: Toggle PvP loadout or manage gear
     usage: /pvp <toggle|gear>
     permission: celeryutils.pvp
+  afk:
+    description: Toggle AFK status
+    usage: /afk
+    permission: celeryutils.afk
+  killall:
+    description: Remove entities by category or type
+    usage: /killall <selector|entity_type> [world]
+    permission: celeryutils.killall
 
 permissions:
   celeryutils.pvp:
@@ -33,4 +41,13 @@ permissions:
     default: op
   celeryutils.economy:
     description: Permission for Economy Permissions module
+    default: op
+  celeryutils.afk:
+    description: Permission to use AFK command
+    default: true
+  celeryutils.afk.bypass:
+    description: Exempt player from AFK auto-kick
+    default: op
+  celeryutils.killall:
+    description: Permission to run /killall
     default: op
