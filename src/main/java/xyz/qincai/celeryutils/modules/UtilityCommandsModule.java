@@ -565,7 +565,7 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         return LegacyComponentSerializer.legacySection().serialize(MiniMessage.miniMessage().deserialize(message == null ? "" : message));
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onServerListPing(ServerListPingEvent event) {
         if (!config.getBoolean("motd.enabled", false)) {
             return;
