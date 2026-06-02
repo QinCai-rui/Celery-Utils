@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
@@ -59,6 +60,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
     private final Map<UUID, List<ItemStack>> dbLoadouts = new ConcurrentHashMap<>();
 
     private NamespacedKey pvpItemKey;
+    private PluginCommand pvpCommand;
 
     public PvPModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -114,14 +116,25 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
 
         this.pvpItemKey = new NamespacedKey(plugin, "pvp_item");
 
-        PluginCommand pvpCommand = plugin.getCommand("pvp");
-        if (pvpCommand != null) {
-            pvpCommand.setExecutor(this);
-            pvpCommand.setTabCompleter(this);
-        } else {
+        PluginCommand cmd = plugin.getPluginCommand("pvp");
+        if (cmd != null) {
+            this.pvpCommand = cmd;
+        }
+        if (this.pvpCommand == null) {
             plugin.getLogger().warning("PvP command not found in plugin.yml!");
             return false;
         }
+
+        // Ensure command is registered in the CommandMap (it may have been unregistered)
+        CommandMap commandMap = Bukkit.getCommandMap();
+        Command existing = commandMap.getCommand("pvp");
+        if (!this.pvpCommand.equals(existing)) {
+            this.pvpCommand.unregister(commandMap);
+            commandMap.register("pvp", plugin.getName(), this.pvpCommand);
+        }
+
+        this.pvpCommand.setExecutor(this);
+        this.pvpCommand.setTabCompleter(this);
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
 
@@ -130,6 +143,12 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
 
     @Override
     public void disable() {
+        // Unregister command from the CommandMap so other plugins can use it
+        if (pvpCommand != null) {
+            CommandMap commandMap = Bukkit.getCommandMap();
+            pvpCommand.unregister(commandMap);
+        }
+
         // Restore all players before disabling to prevent item loss
         for (UUID uuid : new ArrayList<>(activePvpPlayers)) {
             Player player = Bukkit.getPlayer(uuid);

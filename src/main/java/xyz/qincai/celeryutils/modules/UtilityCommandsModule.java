@@ -9,6 +9,7 @@ import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
@@ -75,6 +76,9 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
     private final Random random = new Random();
     private BukkitTask afkTask;
     private FileConfiguration config;
+    private PluginCommand afkCommand;
+    private PluginCommand killallCommand;
+    private PluginCommand gmCommand;
 
     private List<Component> motdComponents = Collections.emptyList();
     private int motdCurrentIndex;
@@ -114,27 +118,9 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         }
         this.config = YamlConfiguration.loadConfiguration(configFile);
 
-        PluginCommand afkCommand = plugin.getCommand("afk");
-        PluginCommand killallCommand = plugin.getCommand("killall");
-        if (afkCommand == null || killallCommand == null) {
-            plugin.getLogger().warning("Utility Tools commands are missing in plugin.yml");
+        if (!setupCommands()) {
             return false;
         }
-
-        PluginCommand gmCommand = plugin.getCommand("gm");
-        if (gmCommand == null) {
-            plugin.getLogger().warning("GM command is missing in plugin.yml");
-            return false;
-        }
-
-        gmCommand.setExecutor(this);
-        gmCommand.setTabCompleter(this);
-
-
-        afkCommand.setExecutor(this);
-        afkCommand.setTabCompleter(this);
-        killallCommand.setExecutor(this);
-        killallCommand.setTabCompleter(this);
 
         PluginManager pluginManager = plugin.getServer().getPluginManager();
         pluginManager.registerEvents(this, plugin);
@@ -152,8 +138,84 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         return true;
     }
 
+    private boolean setupCommands() {
+        // Get or restore afk command reference
+        PluginCommand cmd = plugin.getPluginCommand("afk");
+        if (cmd != null) {
+            this.afkCommand = cmd;
+        }
+        if (this.afkCommand == null) {
+            plugin.getLogger().warning("AFK command is missing in plugin.yml");
+            return false;
+        }
+
+        // Get or restore killall command reference
+        cmd = plugin.getPluginCommand("killall");
+        if (cmd != null) {
+            this.killallCommand = cmd;
+        }
+        if (this.killallCommand == null) {
+            plugin.getLogger().warning("Killall command is missing in plugin.yml");
+            return false;
+        }
+
+        // Get or restore gm command reference
+        cmd = plugin.getPluginCommand("gm");
+        if (cmd != null) {
+            this.gmCommand = cmd;
+        }
+        if (this.gmCommand == null) {
+            plugin.getLogger().warning("GM command is missing in plugin.yml");
+            return false;
+        }
+
+        // Ensure commands are registered in the CommandMap (they may have been unregistered)
+        CommandMap commandMap = Bukkit.getCommandMap();
+        ensureCommandRegistered(commandMap, "afk", this.afkCommand);
+        ensureCommandRegistered(commandMap, "killall", this.killallCommand);
+        ensureCommandRegistered(commandMap, "gm", this.gmCommand);
+
+        this.afkCommand.setExecutor(this);
+        this.afkCommand.setTabCompleter(this);
+        this.killallCommand.setExecutor(this);
+        this.killallCommand.setTabCompleter(this);
+        this.gmCommand.setExecutor(this);
+        this.gmCommand.setTabCompleter(this);
+
+        // Handle feature-level disabling - unregister specific commands if disabled in config
+        if (!config.getBoolean("afk.command-enabled", true)) {
+            plugin.unregisterCommand("afk");
+        }
+        if (!config.getBoolean("killall.enabled", true)) {
+            plugin.unregisterCommand("killall");
+        }
+
+        return true;
+    }
+
+    private void ensureCommandRegistered(CommandMap commandMap, String name, PluginCommand command) {
+        Command existing = commandMap.getCommand(name);
+        if (command.equals(existing)) {
+            return;
+        }
+        command.unregister(commandMap);
+        commandMap.register(name, plugin.getName(), command);
+    }
+
     @Override
     public void disable() {
+        // Unregister commands from the CommandMap so other plugins can use them
+        CommandMap commandMap = Bukkit.getCommandMap();
+        if (afkCommand != null) {
+            afkCommand.unregister(commandMap);
+        }
+        if (killallCommand != null) {
+            killallCommand.unregister(commandMap);
+        }
+        if (gmCommand != null) {
+            gmCommand.unregister(commandMap);
+        }
+
         if (afkTask != null) {
             afkTask.cancel();
             afkTask = null;
