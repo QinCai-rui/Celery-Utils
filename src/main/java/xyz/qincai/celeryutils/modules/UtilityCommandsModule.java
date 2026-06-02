@@ -79,6 +79,7 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
     private List<Component> motdComponents = Collections.emptyList();
     private int motdCurrentIndex;
     private BukkitTask motdRotationTask;
+    private final List<String> motdInitWarnings = new ArrayList<>();
 
     private static final List<String> KILLALL_SELECTORS = List.of(
             "items",
@@ -585,6 +586,7 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
     }
 
     private void initializeMotd() {
+        motdInitWarnings.clear();
         if (!config.getBoolean("motd.enabled", false)) {
             return;
         }
@@ -650,7 +652,20 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         if (text == null || text.isBlank()) {
             return Component.empty();
         }
-        String converted = ChatColor.translateAlternateColorCodes('&', text);
-        return MiniMessage.miniMessage().deserialize(converted);
+        String legacy = ChatColor.translateAlternateColorCodes('&', text);
+        try {
+            return MiniMessage.miniMessage().deserialize(legacy);
+        } catch (Exception e) {
+            String warning = "MOTD line contains legacy formatting codes, using legacy fallback: \"" + text + "\"";
+            motdInitWarnings.add(warning);
+            plugin.getLogger().warning(warning);
+            return LegacyComponentSerializer.legacySection().deserialize(legacy);
+        }
+    }
+
+    public List<String> getMotdInitWarnings() {
+        List<String> warnings = new ArrayList<>(motdInitWarnings);
+        motdInitWarnings.clear();
+        return warnings;
     }
 }

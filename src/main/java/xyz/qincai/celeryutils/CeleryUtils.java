@@ -507,6 +507,13 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             reloadModule("inventory-totem", wantTotem, () -> new InventoryTotemModule(this));
             reloadModule("utility-tools", wantUtilityTools, () -> new UtilityCommandsModule(this));
 
+            CeleryModule utilModule = modules.get("utility-tools");
+            if (utilModule instanceof UtilityCommandsModule ucm) {
+                for (String warning : ucm.getMotdInitWarnings()) {
+                    sender.sendMessage("§e" + warning);
+                }
+            }
+
             sender.sendMessage("§aReload complete.");
         } catch (Exception e) {
             sender.sendMessage("§cFailed to reload configs/modules: " + e.getMessage());
