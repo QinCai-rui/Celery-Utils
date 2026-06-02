@@ -6,8 +6,8 @@
 config-version: 1.0
 
 afk:
-  # Set to false to disable the AFK system entirely.
-  enabled: true
+  # Set to true to enable the AFK system
+  enabled: false
 
   # Allow players to toggle AFK manually with /afk.
   command-enabled: true
