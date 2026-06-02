@@ -22,15 +22,22 @@ import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 import xyz.qincai.celeryutils.database.DatabaseManager;
 import xyz.qincai.celeryutils.logging.NamespaceLogCleaner;
 
-import java.util.HashMap;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
@@ -71,6 +78,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
         upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
         upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
+        saveResourceIfAbsent("modules/utility-tools/motds.txt");
 
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize(getConfig().getConfigurationSection("database"));
@@ -129,7 +137,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             backupConfig(targetFile, label, currentVersion, defaultVersion);
             mergeMissingValues(currentConfig, defaultConfig, "");
             currentConfig.set("config-version", defaultVersion);
-            currentConfig.save(targetFile);
+            saveYamlWithComments(targetFile, resourcePath, currentConfig);
             getLogger().info("Upgraded " + label + " from v" + currentVersion + " to v" + defaultVersion);
         } catch (Exception e) {
             getLogger().log(Level.WARNING, "Failed to upgrade " + label, e);
@@ -194,6 +202,130 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 target.set(key, defaults.get(key));
             }
         }
+    }
+
+    private void saveResourceIfAbsent(String resourcePath) {
+        File target = new File(getDataFolder(), resourcePath);
+        if (!target.exists()) {
+            saveResource(resourcePath, false);
+        }
+    }
+
+    private void saveYamlWithComments(File targetFile, String resourcePath, FileConfiguration mergedConfig) throws IOException {
+        List<String> templateLines;
+        try (InputStream in = getResource(resourcePath);
+             BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            templateLines = r.lines().toList();
+        }
+
+        List<String> output = new ArrayList<>();
+        Deque<String> pathStack = new ArrayDeque<>();
+        Set<String> seenPaths = new HashSet<>();
+        String skipListPath = null;
+
+        for (String line : templateLines) {
+            if (skipListPath != null) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("- ") || trimmed.isEmpty() || trimmed.startsWith("#")) {
+                    continue;
+                }
+                int indent = 0;
+                while (indent < line.length() && line.charAt(indent) == ' ') indent++;
+                int depth = indent / 2;
+                int listDepth = skipListPath.split("\\.").length;
+                if (depth <= listDepth) {
+                    skipListPath = null;
+                } else {
+                    continue;
+                }
+            }
+
+            if (line.isBlank() || line.trim().startsWith("#")) {
+                output.add(line);
+                continue;
+            }
+
+            int indent = 0;
+            while (indent < line.length() && line.charAt(indent) == ' ') indent++;
+            int depth = indent / 2;
+
+            while (pathStack.size() > depth) {
+                pathStack.removeLast();
+            }
+
+            String trimmed = line.trim();
+            int colonIdx = trimmed.indexOf(':');
+            if (colonIdx == -1) {
+                output.add(line);
+                continue;
+            }
+
+            String key = trimmed.substring(0, colonIdx);
+            pathStack.addLast(key);
+            String fullPath = String.join(".", pathStack);
+
+            String valueStr = trimmed.substring(colonIdx + 1).trim();
+
+            if (valueStr.isEmpty() && mergedConfig.contains(fullPath) && mergedConfig.isList(fullPath)) {
+                output.add(repeat(" ", indent) + key + ":");
+                for (Object item : mergedConfig.getList(fullPath)) {
+                    output.add(repeat(" ", indent + 2) + "- " + yamlScalar(item));
+                }
+                seenPaths.add(fullPath);
+                skipListPath = fullPath;
+                continue;
+            }
+
+            if (!valueStr.isEmpty() && mergedConfig.contains(fullPath) && !mergedConfig.isConfigurationSection(fullPath)) {
+                output.add(repeat(" ", indent) + key + ": " + yamlScalar(mergedConfig.get(fullPath)));
+            } else {
+                output.add(line);
+            }
+            seenPaths.add(fullPath);
+        }
+
+        for (String fullPath : mergedConfig.getKeys(true)) {
+            if (seenPaths.contains(fullPath) || mergedConfig.isConfigurationSection(fullPath)) {
+                continue;
+            }
+            int lastDot = fullPath.lastIndexOf('.');
+            String parentPath = lastDot == -1 ? "" : fullPath.substring(0, lastDot);
+            String shortKey = lastDot == -1 ? fullPath : fullPath.substring(lastDot + 1);
+            int depth = parentPath.isEmpty() ? 0 : parentPath.split("\\.").length;
+
+            if (!parentPath.isEmpty() && !seenPaths.contains(parentPath)) {
+                StringBuilder pp = new StringBuilder();
+                for (String seg : parentPath.split("\\.")) {
+                    String pFull = pp.isEmpty() ? seg : pp + "." + seg;
+                    if (!seenPaths.contains(pFull)) {
+                        output.add(repeat(" ", pp.length() == 0 ? 0 : (pp.toString().split("\\.").length * 2)) + seg + ":");
+                        seenPaths.add(pFull);
+                    }
+                    pp = pp.isEmpty() ? new StringBuilder(seg) : pp.append(".").append(seg);
+                }
+            }
+
+            output.add(repeat(" ", depth * 2) + shortKey + ": " + yamlScalar(mergedConfig.get(fullPath)));
+        }
+
+        Files.writeString(targetFile.toPath(), String.join("\n", output) + "\n", StandardCharsets.UTF_8);
+    }
+
+    private String yamlScalar(Object value) {
+        if (value == null) return "";
+        if (value instanceof Boolean || value instanceof Number) return value.toString();
+        String s = value.toString();
+        if (s.isEmpty()) return "''";
+        if (s.matches(".*[#:\\[\\]{},&*?|\\-<>=!%@`].*") || s.matches("^[\\s'\"].*") || s.matches(".*[\\s'\"]$")) {
+            return "'" + s.replace("'", "''") + "'";
+        }
+        return s;
+    }
+
+    private String repeat(String s, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) sb.append(s);
+        return sb.toString();
     }
 
     @Override
@@ -486,6 +618,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
             upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
             upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
+            saveResourceIfAbsent("modules/utility-tools/motds.txt");
 
             // Reload plugin config again after upgrade so the latest values are loaded.
             reloadConfig();
