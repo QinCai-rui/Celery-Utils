@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 1.0
+config-version: 1.2
 
 # Required permission to use totem enhancements (leave empty to not require a permission)
 permission-node: "celeryutils.totem"
