@@ -194,6 +194,8 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             public void run() {
                 try {
                     updateWhitelistEntryName(playerUUID, playerName);
+                    updatePremiumUsernameAndRemoveOffline(playerUUID, playerName);
+                    removePremiumCounterpartForCrackedPlayer(playerUUID, playerName);
                     // Clean up after a delay to allow for re-login
                     Bukkit.getScheduler().runTaskLater(plugin, () -> recentlyProcessedPlayers.remove(playerUUID), 1200L); // 1 minute
                 } catch (Exception e) {
@@ -483,6 +485,192 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             plugin.getLogger().log(Level.WARNING, "Error fetching Mojang UUID for " + username, e);
         }
         return null;
+    }
+
+    private String fetchOnlineUsername(UUID uuid) {
+        try {
+            // because this api needs UUID without dashes
+            String uuidStr = uuid.toString().replace("-", "");
+            URL url = new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuidStr);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+
+            if (connection.getResponseCode() == 200) {
+                InputStreamReader reader = new InputStreamReader(connection.getInputStream());
+                JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
+                String name = jsonObject.get("name").getAsString();
+                return name != null ? name.trim() : null;
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Error fetching Mojang username for UUID " + uuid, e);
+        }
+        return null;
+    }
+
+    private void updatePremiumUsernameAndRemoveOffline(UUID playerUUID, String playerName) {
+        try {
+            String premiumUsername = fetchOnlineUsername(playerUUID);
+            if (premiumUsername == null || premiumUsername.isBlank()) {
+                return;
+            }
+
+            UUID offlineUUID = UUID.nameUUIDFromBytes(("OfflinePlayer:" + premiumUsername).getBytes(StandardCharsets.UTF_8));
+
+            synchronized (whitelistFileLock) {
+                File whitelistFile = new File(Bukkit.getWorldContainer(), "whitelist.json");
+                if (!whitelistFile.exists()) {
+                    return;
+                }
+
+                JsonElement parsed;
+                try (BufferedReader reader = Files.newBufferedReader(whitelistFile.toPath(), StandardCharsets.UTF_8)) {
+                    parsed = JsonParser.parseReader(reader);
+                }
+                if (!parsed.isJsonArray()) return;
+
+                JsonArray entries = parsed.getAsJsonArray();
+                boolean updated = false;
+
+                JsonArray cleanedEntries = new JsonArray();
+                for (JsonElement element : entries) {
+                    if (!element.isJsonObject()) {
+                        cleanedEntries.add(element);
+                        continue;
+                    }
+
+                    JsonObject obj = element.getAsJsonObject();
+                    if (!obj.has("uuid")) {
+                        cleanedEntries.add(element);
+                        continue;
+                    }
+
+                    UUID entryUuid;
+                    try {
+                        entryUuid = UUID.fromString(obj.get("uuid").getAsString());
+                    } catch (IllegalArgumentException ignored) {
+                        cleanedEntries.add(element);
+                        continue;
+                    }
+
+                    if (entryUuid.equals(offlineUUID)) {
+                        plugin.getLogger().info("Removed offline whitelist entry for " + premiumUsername + " (" + offlineUUID + ")");
+                        updated = true;
+                        continue;
+                    }
+
+                    if (entryUuid.equals(playerUUID)) {
+                        String currentName = obj.has("name") && !obj.get("name").isJsonNull() ? obj.get("name").getAsString() : "";
+                        if (!premiumUsername.equals(currentName)) {
+                            obj.addProperty("name", premiumUsername);
+                            plugin.getLogger().info("Updated premium whitelist entry name to " + premiumUsername + " for (" + playerUUID + ")");
+                            updated = true;
+                        }
+                    }
+
+                    cleanedEntries.add(obj);
+                }
+
+                if (updated) {
+                    Files.writeString(
+                            whitelistFile.toPath(),
+                            new GsonBuilder().setPrettyPrinting().create().toJson(cleanedEntries),
+                            StandardCharsets.UTF_8
+                    );
+
+                    Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                        try {
+                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "whitelist reload");
+                        } catch (Exception e) {
+                            plugin.getLogger().log(Level.WARNING, "Failed to reload whitelist", e);
+                        }
+                        return null;
+                    });
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Failed to update premium whitelist entry for " + playerName, e);
+        }
+    }
+
+    private void removePremiumCounterpartForCrackedPlayer(UUID playerUUID, String playerName) {
+        UUID computedOfflineUUID = UUID.nameUUIDFromBytes(("OfflinePlayer:" + playerName).getBytes(StandardCharsets.UTF_8));
+        if (!playerUUID.equals(computedOfflineUUID)) {
+            return;
+        }
+
+        UUID onlineUUID = fetchOnlineUUID(playerName);
+        if (onlineUUID == null) {
+            return;
+        }
+
+        synchronized (whitelistFileLock) {
+            try {
+                File whitelistFile = new File(Bukkit.getWorldContainer(), "whitelist.json");
+                if (!whitelistFile.exists()) {
+                    return;
+                }
+
+                JsonElement parsed;
+                try (BufferedReader reader = Files.newBufferedReader(whitelistFile.toPath(), StandardCharsets.UTF_8)) {
+                    parsed = JsonParser.parseReader(reader);
+                }
+                if (!parsed.isJsonArray()) return;
+
+                JsonArray entries = parsed.getAsJsonArray();
+                boolean removed = false;
+
+                JsonArray cleanedEntries = new JsonArray();
+                for (JsonElement element : entries) {
+                    if (!element.isJsonObject()) {
+                        cleanedEntries.add(element);
+                        continue;
+                    }
+
+                    JsonObject obj = element.getAsJsonObject();
+                    if (!obj.has("uuid")) {
+                        cleanedEntries.add(element);
+                        continue;
+                    }
+
+                    UUID entryUuid;
+                    try {
+                        entryUuid = UUID.fromString(obj.get("uuid").getAsString());
+                    } catch (IllegalArgumentException ignored) {
+                        cleanedEntries.add(element);
+                        continue;
+                    }
+
+                    if (entryUuid.equals(onlineUUID)) {
+                        plugin.getLogger().info("Removed premium whitelist counterpart for cracked player " + playerName + " (" + onlineUUID + ")");
+                        removed = true;
+                        continue;
+                    }
+
+                    cleanedEntries.add(obj);
+                }
+
+                if (removed) {
+                    Files.writeString(
+                            whitelistFile.toPath(),
+                            new GsonBuilder().setPrettyPrinting().create().toJson(cleanedEntries),
+                            StandardCharsets.UTF_8
+                    );
+
+                    Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                        try {
+                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "whitelist reload");
+                        } catch (Exception e) {
+                            plugin.getLogger().log(Level.WARNING, "Failed to reload whitelist", e);
+                        }
+                        return null;
+                    });
+                }
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to remove premium counterpart for cracked player " + playerName, e);
+            }
+        }
     }
 
     private Map<UUID, String> extractTargetNames(List<org.bukkit.OfflinePlayer> targets, String fallbackName) {
