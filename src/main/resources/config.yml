@@ -44,5 +44,5 @@ modules:
     enabled: false
   pvp-module:
     enabled: false
-  inventory-totem:
+  totemenhancements:
     enabled: false

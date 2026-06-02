@@ -16,7 +16,7 @@ import xyz.qincai.celeryutils.modules.DiscordWhitelistChannelModule;
 import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
 import xyz.qincai.celeryutils.modules.DeathPenaltyModule;
 import xyz.qincai.celeryutils.modules.PvPModule;
-import xyz.qincai.celeryutils.modules.InventoryTotemModule;
+import xyz.qincai.celeryutils.modules.TotemEnhancementsModule;
 import xyz.qincai.celeryutils.modules.UtilityCommandsModule;
 import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 import xyz.qincai.celeryutils.database.DatabaseManager;
@@ -76,7 +76,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
         upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
         upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
-        upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
+        upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
         upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
         saveResourceIfAbsent("modules/utility-tools/motds.txt");
 
@@ -95,7 +95,15 @@ public class CeleryUtils extends JavaPlugin implements Listener {
     private void upgradeConfig(String resourcePath, File targetFile, String label) {
         try {
             File legacyTarget = null;
-            if ("modules/discord-link/config.yml".equals(resourcePath)) {
+            if ("modules/totemenhancements/config.yml".equals(resourcePath)) {
+                File legacyNew = new File(getDataFolder(), "modules/inventory-totems/config.yml");
+                File legacyOld = new File(getDataFolder(), "modules/inventory-totem/config.yml");
+                if (legacyNew.exists()) {
+                    legacyTarget = legacyNew;
+                } else if (legacyOld.exists()) {
+                    legacyTarget = legacyOld;
+                }
+            } else if ("modules/discord-link/config.yml".equals(resourcePath)) {
                 legacyTarget = new File(getDataFolder(), "modules/discord-sync/config.yml");
             } else if ("modules/utility-tools/config.yml".equals(resourcePath)) {
                 legacyTarget = new File(getDataFolder(), "modules/afk/config.yml");
@@ -407,8 +415,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
 
-        if (getConfig().getBoolean("modules.inventory-totem.enabled", true)) {
-            CeleryModule totemModule = new InventoryTotemModule(this);
+        if (getConfig().getBoolean("modules.totemenhancements.enabled", true)) {
+            CeleryModule totemModule = new TotemEnhancementsModule(this);
             if (totemModule.initialize()) {
                 modules.put(totemModule.getName(), totemModule);
                 getLogger().info("✓ Loaded module: " + totemModule.getName());
@@ -616,7 +624,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             upgradeConfig("modules/economy-permissions/config.yml", new File(getDataFolder(), "modules/economy-permissions/config.yml"), "Economy Permissions module config");
             upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
             upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
-            upgradeConfig("modules/inventory-totem/config.yml", new File(getDataFolder(), "modules/inventory-totem/config.yml"), "Inventory Totem module config");
+            upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
             upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
             saveResourceIfAbsent("modules/utility-tools/motds.txt");
 
@@ -629,7 +637,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             boolean wantEcon = getConfig().getBoolean("modules.economy-permissions.enabled", true);
             boolean wantDeath = getConfig().getBoolean("modules.death-penalty.enabled", true);
             boolean wantPvp = getConfig().getBoolean("modules.pvp-module.enabled", true);
-            boolean wantTotem = getConfig().getBoolean("modules.inventory-totem.enabled", true);
+            boolean wantTotem = getConfig().getBoolean("modules.totemenhancements.enabled", true);
             boolean wantUtilityTools = isModuleEnabled("modules.utility-tools.enabled", "modules.afk.enabled");
 
             reloadModule("Discord Link", wantDiscord, () -> new DiscordLinkModule(this));
@@ -637,7 +645,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             reloadModule("Economy Permissions", wantEcon, () -> new EconomyPermissionsModule(this));
             reloadModule("Death Penalty", wantDeath, () -> new DeathPenaltyModule(this));
             reloadModule("pvp-module", wantPvp, () -> new PvPModule(this));
-            reloadModule("inventory-totem", wantTotem, () -> new InventoryTotemModule(this));
+            reloadModule("totemenhancements", wantTotem, () -> new TotemEnhancementsModule(this));
             reloadModule("utility-tools", wantUtilityTools, () -> new UtilityCommandsModule(this));
 
             CeleryModule utilModule = modules.get("utility-tools");
@@ -702,7 +710,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             sender.sendMessage("§f/cu update §7- §7Check for plugin updates");
             sender.sendMessage("§f/cu reload §7- §7Reload configs and (re)load modules if changed");
         }
-        sender.sendMessage("§7Modules: §aDiscord Link, Discord Whitelist Channel, Economy Permissions, Death Penalty, PvP Module, Inventory Totem, Utility Tools");
+        sender.sendMessage("§7Modules: §aDiscord Link, Discord Whitelist Channel, Economy Permissions, Death Penalty, PvP Module, TotemEnhancements, Utility Tools");
         sender.sendMessage("§7For more details use §b/cu help modules §7or §b/cu help [link|ecoperm|whitelist|utility|admin]§7.");
     }
 
@@ -736,7 +744,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§fEconomy Permissions §7- §7Sell permission rules via economy and configurable buyable permissions.");
                 sender.sendMessage("§fDeath Penalty §7- §7Apply XP and/or money penalties when players die with keepInventory enabled.");
                 sender.sendMessage("§fPvP Module §7- §7Enable toggleable PvP mode with saved gear loadouts via /pvp.");
-                sender.sendMessage("§fInventory Totem §7- §7Use a Totem of Undying from inventory automatically when you would die.");
+                sender.sendMessage("§fTotemEnhancements §7- §7Enhances totems with inventory activation, death broadcasts, and more.");
                 sender.sendMessage("§fUtility Tools §7- §7Includes /afk and /killall with auto AFK detection and cleanup controls.");
             }
             case "utility", "afk", "killall" -> {

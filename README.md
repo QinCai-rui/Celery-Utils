@@ -23,7 +23,7 @@ This plugin has a modular design that allows for specific modules to be enabled 
 - **Death Penalty**: applies configurable penalties on death, such as item loss or economy deductions. Useful for servers with `keep_inventory` on to add consequences to dying.
 - **Utility Tools**: includes `/afk` (manual + automatic AFK, auto-kick, TAB AFK tag) and `/killall` (clear drops/mobs by category or exact entity type).
 - **Gamemode Shortcuts**: quick gamemode switching with `/gm <mode>` (0/1/2/3/survival/creative/adventure/spectator).
-- **Totems work in inventory**: allows totems of undying to activate from the player's inventory instead of just the offhand (configurable and toggleable).
+- **TotemEnhancements**: allows totems of undying to activate from the player's inventory, with death broadcasts for both inventory and hand/offhand totem activations.
 
 ## HOW TO - server admins
 

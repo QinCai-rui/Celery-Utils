@@ -16,26 +16,26 @@ import xyz.qincai.celeryutils.api.CeleryModule;
 
 import java.io.File;
 
-public class InventoryTotemModule implements CeleryModule, Listener {
+public class TotemEnhancementsModule implements CeleryModule, Listener {
 
     private final CeleryUtils plugin;
     private FileConfiguration config;
     private File configFile;
 
-    public InventoryTotemModule(CeleryUtils plugin) {
+    public TotemEnhancementsModule(CeleryUtils plugin) {
         this.plugin = plugin;
     }
 
     @Override
     public String getName() {
-        return "inventory-totem";
+        return "totemenhancements";
     }
 
     @Override
     public boolean initialize() {
-        this.configFile = new File(plugin.getDataFolder(), "modules/inventory-totem/config.yml");
+        this.configFile = new File(plugin.getDataFolder(), "modules/totemenhancements/config.yml");
         if (!configFile.exists()) {
-            plugin.saveResource("modules/inventory-totem/config.yml", false);
+            plugin.saveResource("modules/totemenhancements/config.yml", false);
         }
         this.config = YamlConfiguration.loadConfiguration(configFile);
 
@@ -46,24 +46,23 @@ public class InventoryTotemModule implements CeleryModule, Listener {
 
     @Override
     public void disable() {
-        // Nothing special to disable
     }
 
     @Override
     public boolean isEnabled() {
-        return plugin.getConfig().getBoolean("modules.inventory-totem.enabled", false);
+        return plugin.getConfig().getBoolean("modules.totemenhancements.enabled", false);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onEntityResurrect(EntityResurrectEvent event) {
-        if (!(event.getEntity() instanceof Player)) {
+        if (!(event.getEntity() instanceof Player player)) {
             return;
         }
 
-        Player player = (Player) event.getEntity();
-
-        // If the event isn't cancelled, it means the player was already holding a totem.
         if (!event.isCancelled()) {
+            if (config.getBoolean("hand-totem.broadcast", false)) {
+                tryBroadcast(player);
+            }
             return;
         }
 
@@ -72,9 +71,12 @@ public class InventoryTotemModule implements CeleryModule, Listener {
             return;
         }
 
+        if (!config.getBoolean("inventory-totem.enabled", true)) {
+            return;
+        }
+
         PlayerInventory inv = player.getInventory();
 
-        // If the player already has an active totem in hand, let vanilla handle the process.
         ItemStack mainHand = inv.getItemInMainHand();
         ItemStack offHand = inv.getItemInOffHand();
         if ((mainHand != null && mainHand.getType() == Material.TOTEM_OF_UNDYING)
@@ -85,7 +87,6 @@ public class InventoryTotemModule implements CeleryModule, Listener {
         boolean foundTotem = false;
         int totemSlot = -1;
 
-        // Search for a totem in the main inventory (slots 0-35)
         for (int i = 0; i <= 35; i++) {
             ItemStack item = inv.getItem(i);
             if (item != null && item.getType() == Material.TOTEM_OF_UNDYING) {
@@ -96,7 +97,6 @@ public class InventoryTotemModule implements CeleryModule, Listener {
         }
 
         if (foundTotem) {
-            // Consume the totem
             ItemStack totem = inv.getItem(totemSlot);
             if (totem.getAmount() > 1) {
                 totem.setAmount(totem.getAmount() - 1);
@@ -104,36 +104,47 @@ public class InventoryTotemModule implements CeleryModule, Listener {
                 inv.setItem(totemSlot, null);
             }
 
-            // Un-cancel the event to resurrect the player
             event.setCancelled(false);
 
-            // Send custom message if enabled
-            if (config.getBoolean("send-activation-message", true)) {
-                String message = config.getString("activation-message", "&aA Totem of Undying in your inventory saved your life!");
+            if (config.getBoolean("inventory-totem.activation-message.enabled", true)) {
+                String message = config.getString("inventory-totem.activation-message.text",
+                        "&aA Totem of Undying in your inventory saved your life!");
                 if (message != null && !message.isEmpty()) {
                     player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
                 }
             }
-            
-            // Play effect simply in case vanilla doesn't animate properly when the item isn't in hand
-            if (config.getBoolean("play-totem-effect", true)) {
+
+            if (config.getBoolean("inventory-totem.play-effect", true)) {
                 player.playEffect(org.bukkit.EntityEffect.TOTEM_RESURRECT);
             }
 
-            // Broadcast death message
-            if (config.getBoolean("broadcast-messages.enabled", true)) {
-                String causeName = resolveDeathCause(player);
-
-                String broadcastMsg = config.getString("broadcast-messages.causes." + causeName);
-                if (broadcastMsg == null || broadcastMsg.isEmpty()) {
-                    broadcastMsg = config.getString("broadcast-messages.default", "%player% died but came back to life thanks to &e[Totem Of Undying]&r in their &linventory");
-                }
-
-                if (broadcastMsg != null && !broadcastMsg.isEmpty()) {
-                    broadcastMsg = broadcastMsg.replace("%player%", player.getName());
-                    plugin.getServer().broadcastMessage(ChatColor.translateAlternateColorCodes('&', broadcastMsg));
-                }
+            if (config.getBoolean("inventory-totem.broadcast", true)) {
+                tryBroadcast(player);
             }
+        }
+    }
+
+    private void tryBroadcast(Player player) {
+        String reqPermission = config.getString("permission-node", "celeryutils.totem");
+        if (reqPermission != null && !reqPermission.isEmpty() && !player.hasPermission(reqPermission)) {
+            return;
+        }
+
+        broadcastDeathMessage(player);
+    }
+
+    private void broadcastDeathMessage(Player player) {
+        String causeName = resolveDeathCause(player);
+
+        String broadcastMsg = config.getString("broadcast-messages.causes." + causeName);
+        if (broadcastMsg == null || broadcastMsg.isEmpty()) {
+            broadcastMsg = config.getString("broadcast-messages.default",
+                    "%player% died but came back to life thanks to &e[Totem Of Undying]&r");
+        }
+
+        if (broadcastMsg != null && !broadcastMsg.isEmpty()) {
+            broadcastMsg = broadcastMsg.replace("%player%", player.getName());
+            plugin.getServer().broadcastMessage(ChatColor.translateAlternateColorCodes('&', broadcastMsg));
         }
     }
 
@@ -196,7 +207,7 @@ public class InventoryTotemModule implements CeleryModule, Listener {
                     return "INTENTIONAL_GAME_DESIGN";
                 }
             }
-            
+
             if (cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALLING_BLOCK) {
                 if (block != null && block.getType().name().contains("ANVIL")) {
                     return "FALLING_ANVIL";
