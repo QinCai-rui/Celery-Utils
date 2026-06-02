@@ -617,7 +617,22 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
             File file = new File(plugin.getDataFolder(), "modules/utility-tools/" + messagesFile);
             if (file.exists()) {
                 try {
-                    rawMessages = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+                    List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+                    rawMessages = new ArrayList<>();
+                    List<String> currentEntry = new ArrayList<>();
+                    for (String line : lines) {
+                        if (line.isBlank()) {
+                            if (!currentEntry.isEmpty()) {
+                                rawMessages.add(String.join("\n", currentEntry));
+                                currentEntry.clear();
+                            }
+                        } else {
+                            currentEntry.add(line);
+                        }
+                    }
+                    if (!currentEntry.isEmpty()) {
+                        rawMessages.add(String.join("\n", currentEntry));
+                    }
                 } catch (IOException e) {
                     plugin.getLogger().log(Level.WARNING, "Failed to read MOTD file: " + messagesFile, e);
                     rawMessages = Collections.emptyList();
@@ -640,7 +655,9 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
             if (raw == null || raw.isBlank()) {
                 continue;
             }
-            Component component = parseMotdComponent(raw);
+            // Replace literal \n with actual newlines for multi-line MOTD support
+            String processed = raw.replace("\\n", "\n");
+            Component component = parseMotdComponent(processed);
             if (component != null) {
                 components.add(component);
             }

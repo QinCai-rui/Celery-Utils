@@ -1,2 +1,7 @@
-<rainbow>Change this in CeleryUtils utility-tools/config.yml</rainbow>
-<gradient:gold:yellow>Powered by CeleryUtils</gradient>
+<green><bold>Celery Network</bold> <yellow><italic>1.9–26.1.2</italic></yellow> <gray>(PVP) beta-26.05.31</gray>
+<gray>As fresh as a morning <green>kiwi</green><gray>, twice as fast as Aussie ping</gray>
+
+<gradient:gold:yellow>Celery Network</gradient>
+<gray>Line one up top, line two down here</gray>
+
+<dark_gray>A third MOTD entry with \n a literal newline right here</dark_gray>

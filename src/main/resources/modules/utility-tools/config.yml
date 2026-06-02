@@ -44,17 +44,18 @@ motd:
   enabled: true
 
   # List of MOTD messages. Supports MiniMessage formatting.
-  # Each entry is a complete MOTD (use \n for newlines).
-  # If multiple messages are given, rotation can cycle through them.
+  # Use \n to insert a newline within a single MOTD entry.
+  # If multiple entries are given, rotation can cycle through them.
   messages:
     - "<rainbow>Change this in CeleryUtils utility-tools/config.yml</rainbow>"
     - "<gradient:gold:yellow>Powered by CeleryUtils</gradient>"
 
-  # Optional: name of a file inside the module's config directory to read MOTD lines from.
-  # Each non-empty line is treated as one MOTD message.
+  # Optional: name of a file inside the module's config directory to read MOTD entries from.
+  # Non-blank lines separated by blank lines form separate entries (paragraph grouping).
+  # Within an entry, use \n or physical line breaks for multi-line MOTDs.
   # When set, this takes priority over the inline "messages" list above.
   # For example: "motds.txt" reads from plugins/CeleryUtils/modules/utility-tools/motds.txt
-  messages-file: ""
+  messages-file: "motds.txt"
 
   # How often (in seconds) to rotate to the next MOTD message.
   # Set to 0 to disable rotation (uses the first message if there are multiple present).
