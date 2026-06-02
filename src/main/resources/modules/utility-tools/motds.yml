@@ -1,0 +1,21 @@
+# MOTD entries for the server list.
+# Each entry under "messages:" is one MOTD that the server can rotate through.
+# Use YAML block scalars (|-) for multi-line entries.
+# Supports both legacy color codes (&) and MiniMessage formatting.
+#
+# Examples:
+#   messages:
+#     - |-
+#       &aYour Server &e1.0
+#       &7Your description here
+#     - |-
+#       <green>Your Server</green> <yellow>1.0</yellow>
+#       <gray>Your description here</gray>
+
+messages:
+  - |-
+    &aYour Server &e1.0
+    &7Change this in plugins/CeleryUtils/modules/utility-tools/motds.yml
+  - |-
+    &aYour Server &e1.0
+    &7Add more entries and enable rotation in config.yml

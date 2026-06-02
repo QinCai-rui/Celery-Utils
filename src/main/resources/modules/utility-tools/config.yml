@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 1.1
+config-version: 1.3
 
 afk:
   # Set to true to enable the AFK system
@@ -43,23 +43,28 @@ motd:
   # Set to true to enable custom server MOTD (multiplayer server list).
   enabled: true
 
-  # List of MOTD messages. Supports MiniMessage formatting.
-  # Use \n to insert a newline within a single MOTD entry.
+  # List of MOTD entries. Place them in a separate YAML file (see messages-file below).
+  # Each entry uses YAML block scalar (|-) for multi-line MOTDs.
+  # Supports both legacy (&) and MiniMessage formatting.
   # If multiple entries are given, rotation can cycle through them.
-  messages:
-    - "<rainbow>Change this in CeleryUtils utility-tools/config.yml</rainbow>"
-    - "<gradient:gold:yellow>Powered by CeleryUtils</gradient>"
+  #
+  # Example motds.yml:
+  #   messages:
+  #     - |-
+  #       &aServer Name &e1.0
+  #       &7Your MOTD line 2 here
+  #     - |-
+  #       &aServer Name &e1.0
+  #       &7Another MOTD line 2
+  #
+  # If the file does not exist the MOTD will remain unchanged.
 
-  # Optional: name of a file inside the module's config directory to read MOTD entries from.
-  # Non-blank lines separated by blank lines form separate entries (paragraph grouping).
-  # Within an entry, use \n or physical line breaks for multi-line MOTDs.
-  # When set, this takes priority over the inline "messages" list above.
-  # For example: "motds.txt" reads from plugins/CeleryUtils/modules/utility-tools/motds.txt
-  messages-file: "motds.txt"
+  # Path to the MOTD file (relative to plugins/CeleryUtils/modules/utility-tools/).
+  messages-file: "motds.yml"
 
   # How often (in seconds) to rotate to the next MOTD message.
   # Set to 0 to disable rotation (uses the first message if there are multiple present).
-  rotation-interval-seconds: 0
+  rotation-interval-seconds: 10
 
   # Rotation mode: SEQUENTIAL or RANDOM.
   rotation-mode: SEQUENTIAL

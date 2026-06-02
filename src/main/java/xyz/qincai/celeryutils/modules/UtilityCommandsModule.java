@@ -611,58 +611,48 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
     }
 
     private void loadMotdMessages() {
-        List<String> rawMessages;
-        String messagesFile = config.getString("motd.messages-file", "");
-        if (!messagesFile.isBlank()) {
-            File file = new File(plugin.getDataFolder(), "modules/utility-tools/" + messagesFile);
-            if (file.exists()) {
-                try {
-                    List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-                    rawMessages = new ArrayList<>();
-                    List<String> currentEntry = new ArrayList<>();
-                    for (String line : lines) {
-                        if (line.isBlank()) {
-                            if (!currentEntry.isEmpty()) {
-                                rawMessages.add(String.join("\n", currentEntry));
-                                currentEntry.clear();
-                            }
-                        } else {
-                            currentEntry.add(line);
-                        }
-                    }
-                    if (!currentEntry.isEmpty()) {
-                        rawMessages.add(String.join("\n", currentEntry));
-                    }
-                } catch (IOException e) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to read MOTD file: " + messagesFile, e);
-                    rawMessages = Collections.emptyList();
-                }
-            } else {
-                plugin.getLogger().warning("MOTD messages-file not found: " + file.getAbsolutePath());
-                rawMessages = Collections.emptyList();
-            }
-        } else {
-            rawMessages = config.getStringList("motd.messages");
+        String messagesFile = config.getString("motd.messages-file", "motds.yml");
+        if (messagesFile.isBlank()) {
+            messagesFile = "motds.yml";
         }
 
-        if (rawMessages.isEmpty()) {
+        File file = new File(plugin.getDataFolder(), "modules/utility-tools/" + messagesFile);
+        if (!file.exists()) {
             motdComponents = Collections.emptyList();
             return;
         }
 
-        List<Component> components = new ArrayList<>(rawMessages.size());
-        for (String raw : rawMessages) {
-            if (raw == null || raw.isBlank()) {
-                continue;
-            }
-            // Replace literal \n with actual newlines for multi-line MOTD support
-            String processed = raw.replace("\\n", "\n");
-            Component component = parseMotdComponent(processed);
-            if (component != null) {
-                components.add(component);
+        List<?> rawList;
+        if (messagesFile.endsWith(".yml") || messagesFile.endsWith(".yaml")) {
+            rawList = YamlConfiguration.loadConfiguration(file).getList("messages");
+        } else {
+            try {
+                List<String> lines = new ArrayList<>();
+                for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
+                    if (!line.isBlank()) lines.add(line);
+                }
+                rawList = lines;
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to read MOTD file: " + messagesFile, e);
+                motdComponents = Collections.emptyList();
+                return;
             }
         }
-        motdComponents = Collections.unmodifiableList(components);
+
+        if (rawList == null || rawList.isEmpty()) {
+            motdComponents = Collections.emptyList();
+            return;
+        }
+
+        List<Component> components = new ArrayList<>();
+        for (Object entry : rawList) {
+            if (entry instanceof String s && !s.isBlank()) {
+                Component component = parseMotdComponent(s);
+                if (component != null) components.add(component);
+            }
+        }
+
+        motdComponents = components.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(components);
     }
 
     private Component parseMotdComponent(String text) {

@@ -78,7 +78,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
         upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
         upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
-        saveResourceIfAbsent("modules/utility-tools/motds.txt");
+        saveResourceIfAbsent("modules/utility-tools/motds.yml");
 
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize(getConfig().getConfigurationSection("database"));
@@ -626,7 +626,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
             upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
             upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
-            saveResourceIfAbsent("modules/utility-tools/motds.txt");
+            saveResourceIfAbsent("modules/utility-tools/motds.yml");
 
             // Reload plugin config again after upgrade so the latest values are loaded.
             reloadConfig();
