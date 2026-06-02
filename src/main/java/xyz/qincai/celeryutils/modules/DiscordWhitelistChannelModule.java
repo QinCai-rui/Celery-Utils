@@ -180,9 +180,9 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             return;
         }
 
-        // Don't process players who aren't on the whitelist - this would
+        // Don't process players who weren't allowed to join - this would
         // incorrectly add them via updateWhitelistEntryName below.
-        if (!event.getPlayer().isWhitelisted()) {
+        if (event.getResult() != PlayerLoginEvent.Result.ALLOWED) {
             return;
         }
 
