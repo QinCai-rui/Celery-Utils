@@ -179,7 +179,13 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         if (!isEnabled()) {
             return;
         }
-        
+
+        // Don't process players who aren't on the whitelist - this would
+        // incorrectly add them via updateWhitelistEntryName below.
+        if (!event.getPlayer().isWhitelisted()) {
+            return;
+        }
+
         UUID playerUUID = event.getPlayer().getUniqueId();
         String playerName = event.getPlayer().getName();
         
