@@ -1,0 +1,2 @@
+<rainbow>Change this in CeleryUtils utility-tools/config.yml</rainbow>
+<gradient:gold:yellow>Powered by CeleryUtils</gradient>

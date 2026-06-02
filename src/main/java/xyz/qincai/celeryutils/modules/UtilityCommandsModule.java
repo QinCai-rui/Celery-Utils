@@ -1,5 +1,6 @@
 package xyz.qincai.celeryutils.modules;
 
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
@@ -39,12 +40,16 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.server.ServerListPingEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.scheduler.BukkitTask;
 import xyz.qincai.celeryutils.CeleryUtils;
 import xyz.qincai.celeryutils.api.CeleryModule;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -53,9 +58,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.logging.Level;
 
 public class UtilityCommandsModule implements CeleryModule, Listener, CommandExecutor, TabCompleter {
 
@@ -65,8 +72,13 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
     private final Map<UUID, String> originalTabNames = new HashMap<>();
     private final Set<UUID> afkPlayers = new HashSet<>();
     private final Set<UUID> manuallyAfk = new HashSet<>();
+    private final Random random = new Random();
     private BukkitTask afkTask;
     private FileConfiguration config;
+
+    private List<Component> motdComponents = Collections.emptyList();
+    private int motdCurrentIndex;
+    private BukkitTask motdRotationTask;
 
     private static final List<String> KILLALL_SELECTORS = List.of(
             "items",
@@ -134,6 +146,8 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         if (config.getBoolean("afk.enabled", true)) {
             startAfkTask();
         }
+
+        initializeMotd();
         return true;
     }
 
@@ -143,6 +157,8 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
             afkTask.cancel();
             afkTask = null;
         }
+
+        disableMotd();
 
         for (UUID uuid : new HashSet<>(afkPlayers)) {
             Player player = Bukkit.getPlayer(uuid);
@@ -547,5 +563,94 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
 
     private String miniMessageToLegacy(String message) {
         return LegacyComponentSerializer.legacySection().serialize(MiniMessage.miniMessage().deserialize(message == null ? "" : message));
+    }
+
+    @EventHandler
+    public void onServerListPing(ServerListPingEvent event) {
+        if (!config.getBoolean("motd.enabled", false)) {
+            return;
+        }
+        if (motdComponents.isEmpty()) {
+            return;
+        }
+
+        int mode = config.getString("rotation-mode", "SEQUENTIAL").equalsIgnoreCase("RANDOM") ? 1 : 0;
+        Component motd;
+        if (mode == 1) {
+            motd = motdComponents.get(random.nextInt(motdComponents.size()));
+        } else {
+            motd = motdComponents.get(motdCurrentIndex % motdComponents.size());
+        }
+        event.motd(motd);
+    }
+
+    private void initializeMotd() {
+        if (!config.getBoolean("motd.enabled", false)) {
+            return;
+        }
+
+        loadMotdMessages();
+
+        int interval = config.getInt("motd.rotation-interval-seconds", 0);
+        if (interval > 0 && motdComponents.size() > 1) {
+            motdRotationTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+                motdCurrentIndex = (motdCurrentIndex + 1) % motdComponents.size();
+            }, interval * 20L, interval * 20L);
+        }
+    }
+
+    private void disableMotd() {
+        if (motdRotationTask != null) {
+            motdRotationTask.cancel();
+            motdRotationTask = null;
+        }
+        motdComponents = Collections.emptyList();
+        motdCurrentIndex = 0;
+    }
+
+    private void loadMotdMessages() {
+        List<String> rawMessages;
+        String messagesFile = config.getString("motd.messages-file", "");
+        if (!messagesFile.isBlank()) {
+            File file = new File(plugin.getDataFolder(), "modules/utility-tools/" + messagesFile);
+            if (file.exists()) {
+                try {
+                    rawMessages = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to read MOTD file: " + messagesFile, e);
+                    rawMessages = Collections.emptyList();
+                }
+            } else {
+                plugin.getLogger().warning("MOTD messages-file not found: " + file.getAbsolutePath());
+                rawMessages = Collections.emptyList();
+            }
+        } else {
+            rawMessages = config.getStringList("motd.messages");
+        }
+
+        if (rawMessages.isEmpty()) {
+            motdComponents = Collections.emptyList();
+            return;
+        }
+
+        List<Component> components = new ArrayList<>(rawMessages.size());
+        for (String raw : rawMessages) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            Component component = parseMotdComponent(raw);
+            if (component != null) {
+                components.add(component);
+            }
+        }
+        motdComponents = Collections.unmodifiableList(components);
+    }
+
+    private Component parseMotdComponent(String text) {
+        if (text == null || text.isBlank()) {
+            return Component.empty();
+        }
+        String converted = ChatColor.translateAlternateColorCodes('&', text);
+        return MiniMessage.miniMessage().deserialize(converted);
     }
 }
