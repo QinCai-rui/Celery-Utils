@@ -12,7 +12,7 @@
         <revision>1.0.0-SNAPSHOT</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
-        <paper.version>1.20.6-R0.1-SNAPSHOT</paper.version>
+        <paper.version>1.21.4-R0.1-SNAPSHOT</paper.version>
         <jda.version>5.0.0</jda.version>
         <vault.version>1.7.1</vault.version>
         <hikari.version>5.1.0</hikari.version>
