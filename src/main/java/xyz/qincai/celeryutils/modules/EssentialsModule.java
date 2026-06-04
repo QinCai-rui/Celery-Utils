@@ -542,12 +542,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         if (count > 0) {
             String kickMsg = config.getString("messages.kickall-kicked", "<red>Kicked by operator:</red> <white>%reason%</white>")
                     .replace("%reason%", reason);
-            Component kickComponent;
-            try {
-                kickComponent = MiniMessage.miniMessage().deserialize(kickMsg);
-            } catch (Exception e) {
-                kickComponent = LegacyComponentSerializer.legacyAmpersand().deserialize(kickMsg);
-            }
+            final Component kickComponent = parseComponent(kickMsg);
             // Brief delay so players see the broadcast before being disconnected
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 for (Player player : toKick) {
@@ -560,13 +555,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
 
         String successMsg = config.getString("messages.kickall-success", "<green>Kicked <white>%count%</white> players.</green>")
                 .replace("%count%", Integer.toString(count));
-        Component successComponent;
-        try {
-            successComponent = MiniMessage.miniMessage().deserialize(successMsg);
-        } catch (Exception e) {
-            successComponent = LegacyComponentSerializer.legacyAmpersand().deserialize(successMsg);
-        }
-        sender.sendMessage(successComponent);
+        sendMsg(sender, successMsg);
 
         return true;
     }
@@ -823,10 +812,14 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     }
 
     private void sendMsg(CommandSender sender, String message) {
+        sender.sendMessage(parseComponent(message));
+    }
+
+    private Component parseComponent(String message) {
         try {
-            sender.sendMessage(MiniMessage.miniMessage().deserialize(message));
+            return MiniMessage.miniMessage().deserialize(message);
         } catch (Exception e) {
-            sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(message));
+            return LegacyComponentSerializer.legacyAmpersand().deserialize(message);
         }
     }
 
