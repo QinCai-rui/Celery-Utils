@@ -2,7 +2,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 1.0
+config-version: 2
 
 # Define permission rules by key
 rules:

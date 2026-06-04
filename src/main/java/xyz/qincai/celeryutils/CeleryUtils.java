@@ -740,6 +740,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             unregisterCommand("afk");
             unregisterCommand("killall");
             unregisterCommand("gm");
+            unregisterCommand("tempban");
+            unregisterCommand("kickall");
         }
         if (!modules.containsKey("pvp-module")) {
             unregisterCommand("pvp");

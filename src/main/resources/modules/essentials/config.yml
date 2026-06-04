@@ -1,9 +1,9 @@
-# Utility Tools Module Configuration
-# Includes AFK automation, killall controls, and server MOTD.
+# Essentials Module Configuration
+# Includes AFK automation, killall controls, tempban, kickall, and server MOTD.
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 1.3
+config-version: 5
 
 afk:
   # Set to true to enable the AFK system
@@ -38,6 +38,26 @@ killall:
 
   # If false, named living entities (custom-name mobs) are protected from /killall.
   include-named-entities: false
+
+tempban:
+  # Set to false to disable /tempban command handling.
+  enabled: true
+
+  # Permission required to use /tempban.
+  command-permission: "celeryutils.tempban"
+
+kickall:
+  # Set to false to disable /kickall command handling.
+  enabled: true
+
+  # Permission required to use /kickall.
+  command-permission: "celeryutils.kickall"
+
+  # Message broadcast before kicking (supports MiniMessage).
+  broadcast-message: "<red>Server is kicking all players. Rejoin shortly.</red>"
+
+  # If true, OPs are also kicked by /kickall.
+  include-operators: false
 
 motd:
   # Set to true to enable custom server MOTD (multiplayer server list).
@@ -81,3 +101,11 @@ messages:
   killall-unknown-target: "&cUnknown killall target: &f%target%"
   killall-unknown-world: "&cUnknown world: &f%world%"
   killall-result: "&aRemoved &f%count% &aentities for target &f%target%&a."
+  tempban-usage: "<red>Usage:</red> <white>/tempban <player> <duration> [reason]</white>\n<gray>Duration: 10m, 2h30m, 1d, 1w6h, or bare number = minutes</gray>"
+  tempban-banned: "<yellow>You have been tempbanned by <white>%sender%</white> for <white>%duration%</white>.\n<yellow>Reason:</yellow> <white>%reason%</white>"
+  tempban-success: "<green>Tempbanned <white>%player%</white> for <white>%duration%</white>.</green>"
+  tempban-invalid-player: "&cPlayer &f%player% &cnot found."
+  tempban-invalid-duration: "&cInvalid duration: &f%input%"
+  kickall-usage: "<red>Usage:</red> <white>/kickall [reason]</white>"
+  kickall-kicked: "<red>Kicked by operator:</red> <white>%reason%</white>"
+  kickall-success: "<green>Kicked <white>%count%</white> players.</green>"

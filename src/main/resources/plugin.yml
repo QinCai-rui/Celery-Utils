@@ -31,6 +31,14 @@ commands:
   gm:
     description: Quick gamemode switch
     usage: /gm <mode>
+  tempban:
+    description: Temporarily ban a player
+    usage: /tempban <player> <minutes> [reason]
+    permission: celeryutils.tempban
+  kickall:
+    description: Kick all players from the server
+    usage: /kickall [reason]
+    permission: celeryutils.kickall
 
 permissions:
   celeryutils.pvp:
@@ -53,4 +61,10 @@ permissions:
     default: op
   celeryutils.killall:
     description: Permission to run /killall
+    default: op
+  celeryutils.tempban:
+    description: Permission to run /tempban
+    default: op
+  celeryutils.kickall:
+    description: Permission to run /kickall
     default: op

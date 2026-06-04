@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 1.7
+config-version: 8
 
 global:
   debug: false
