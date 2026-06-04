@@ -1,4 +1,5 @@
 # Celery-Utils
+[![CI](https://github.com/QinCai-rui/Celery-Utils/actions/workflows/ci.yml/badge.svg)](https://github.com/QinCai-rui/Celery-Utils/actions/workflows/ci.yml) [![Release](https://github.com/QinCai-rui/Celery-Utils/actions/workflows/release.yml/badge.svg)](https://github.com/QinCai-rui/Celery-Utils/actions/workflows/release.yml)
 
 A modular Minecraft plugin for PaperMC servers / SMPs with optional server-side features that can be enabled or disabled independently.
 
