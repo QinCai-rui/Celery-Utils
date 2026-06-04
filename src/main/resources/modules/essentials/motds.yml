@@ -15,7 +15,7 @@
 messages:
   - |-
     &aYour Server &e1.0
-    &7Change this in plugins/CeleryUtils/modules/utility-tools/motds.yml
+    &7Change this in plugins/CeleryUtils/modules/essentials/motds.yml
   - |-
     &aYour Server &e1.0
     &7Add more entries and enable rotation in config.yml

@@ -65,7 +65,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 
-public class UtilityCommandsModule implements CeleryModule, Listener, CommandExecutor, TabCompleter {
+public class EssentialsModule implements CeleryModule, Listener, CommandExecutor, TabCompleter {
 
     private final CeleryUtils plugin;
     private final Map<UUID, Long> lastActivityMillis = new HashMap<>();
@@ -107,14 +107,14 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
 
     @Override
     public String getName() {
-        return "utility-tools";
+        return "essentials";
     }
 
     @Override
     public boolean initialize() {
-        File configFile = new File(plugin.getDataFolder(), "modules/utility-tools/config.yml");
+        File configFile = new File(plugin.getDataFolder(), "modules/essentials/config.yml");
         if (!configFile.exists()) {
-            plugin.saveResource("modules/utility-tools/config.yml", false);
+            plugin.saveResource("modules/essentials/config.yml", false);
         }
         this.config = YamlConfiguration.loadConfiguration(configFile);
 
@@ -238,7 +238,7 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
 
     @Override
     public boolean isEnabled() {
-        return plugin.getConfig().getBoolean("modules.utility-tools.enabled", plugin.getConfig().getBoolean("modules.afk.enabled", false));
+        return plugin.getConfig().getBoolean("modules.essentials.enabled", plugin.getConfig().getBoolean("modules.afk.enabled", false));
     }
 
     private void startAfkTask() {
@@ -674,11 +674,12 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
 
     private void loadMotdMessages() {
         String messagesFile = config.getString("motd.messages-file", "motds.yml");
-        if (messagesFile.isBlank()) {
+        if (messagesFile == null || messagesFile.isBlank()) {
             messagesFile = "motds.yml";
         }
+        messagesFile = messagesFile.trim();
 
-        File file = new File(plugin.getDataFolder(), "modules/utility-tools/" + messagesFile);
+        File file = new File(plugin.getDataFolder(), "modules/essentials/" + messagesFile);
         if (!file.exists()) {
             motdComponents = Collections.emptyList();
             return;
@@ -721,13 +722,14 @@ public class UtilityCommandsModule implements CeleryModule, Listener, CommandExe
         if (text == null || text.isBlank()) {
             return Component.empty();
         }
-        String legacy = ChatColor.translateAlternateColorCodes('&', text);
+        String processed = text.replace("\n", "<newline>");
         try {
-            return MiniMessage.miniMessage().deserialize(legacy);
+            return MiniMessage.miniMessage().deserialize(processed);
         } catch (Exception e) {
             String warning = "MOTD line contains legacy formatting codes, using legacy fallback: \"" + text + "\"";
             motdInitWarnings.add(warning);
             plugin.getLogger().warning(warning);
+            String legacy = ChatColor.translateAlternateColorCodes('&', processed);
             return LegacyComponentSerializer.legacySection().deserialize(legacy);
         }
     }

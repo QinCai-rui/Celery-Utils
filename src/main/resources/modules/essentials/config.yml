@@ -59,7 +59,7 @@ motd:
   #
   # If the file does not exist the MOTD will remain unchanged.
 
-  # Path to the MOTD file (relative to plugins/CeleryUtils/modules/utility-tools/).
+  # Path to the MOTD file (relative to plugins/CeleryUtils/modules/essentials/).
   messages-file: "motds.yml"
 
   # How often (in seconds) to rotate to the next MOTD message.

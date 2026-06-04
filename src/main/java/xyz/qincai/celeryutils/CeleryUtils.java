@@ -20,7 +20,7 @@ import xyz.qincai.celeryutils.modules.EconomyPermissionsModule;
 import xyz.qincai.celeryutils.modules.DeathPenaltyModule;
 import xyz.qincai.celeryutils.modules.PvPModule;
 import xyz.qincai.celeryutils.modules.TotemEnhancementsModule;
-import xyz.qincai.celeryutils.modules.UtilityCommandsModule;
+import xyz.qincai.celeryutils.modules.EssentialsModule;
 import xyz.qincai.celeryutils.updatechecker.UpdateChecker;
 import xyz.qincai.celeryutils.database.DatabaseManager;
 import xyz.qincai.celeryutils.logging.NamespaceLogCleaner;
@@ -81,8 +81,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
         upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
         upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
-        upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
-        saveResourceIfAbsent("modules/utility-tools/motds.yml");
+        upgradeConfig("modules/essentials/config.yml", new File(getDataFolder(), "modules/essentials/config.yml"), "Utility Tools module config");
+        saveResourceIfAbsent("modules/essentials/motds.yml");
 
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize(getConfig().getConfigurationSection("database"));
@@ -120,7 +120,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 }
             } else if ("modules/discord-link/config.yml".equals(resourcePath)) {
                 legacyTarget = new File(getDataFolder(), "modules/discord-sync/config.yml");
-            } else if ("modules/utility-tools/config.yml".equals(resourcePath)) {
+            } else if ("modules/essentials/config.yml".equals(resourcePath)) {
                 legacyTarget = new File(getDataFolder(), "modules/afk/config.yml");
             }
 
@@ -460,8 +460,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
 
-        if (isModuleEnabled("modules.utility-tools.enabled", "modules.afk.enabled")) {
-            CeleryModule utilityToolsModule = new UtilityCommandsModule(this);
+        if (isModuleEnabled("modules.essentials.enabled", "modules.afk.enabled")) {
+            CeleryModule utilityToolsModule = new EssentialsModule(this);
             if (utilityToolsModule.initialize()) {
                 modules.put(utilityToolsModule.getName(), utilityToolsModule);
                 getLogger().info("✓ Loaded module: " + utilityToolsModule.getName());
@@ -660,8 +660,8 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             upgradeConfig("modules/death-penalty/config.yml", new File(getDataFolder(), "modules/death-penalty/config.yml"), "Death Penalty module config");
             upgradeConfig("modules/pvp-module/config.yml", new File(getDataFolder(), "modules/pvp-module/config.yml"), "PvP module config");
             upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
-            upgradeConfig("modules/utility-tools/config.yml", new File(getDataFolder(), "modules/utility-tools/config.yml"), "Utility Tools module config");
-            saveResourceIfAbsent("modules/utility-tools/motds.yml");
+            upgradeConfig("modules/essentials/config.yml", new File(getDataFolder(), "modules/essentials/config.yml"), "Utility Tools module config");
+            saveResourceIfAbsent("modules/essentials/motds.yml");
 
             // Reload plugin config again after upgrade so the latest values are loaded.
             reloadConfig();
@@ -673,7 +673,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             boolean wantDeath = getConfig().getBoolean("modules.death-penalty.enabled", true);
             boolean wantPvp = getConfig().getBoolean("modules.pvp-module.enabled", true);
             boolean wantTotem = getConfig().getBoolean("modules.totemenhancements.enabled", true);
-            boolean wantUtilityTools = isModuleEnabled("modules.utility-tools.enabled", "modules.afk.enabled");
+            boolean wantUtilityTools = isModuleEnabled("modules.essentials.enabled", "modules.afk.enabled");
 
             reloadModule("Discord Link", wantDiscord, () -> new DiscordLinkModule(this));
             reloadModule("Discord Whitelist Channel", wantWhitelist, () -> new DiscordWhitelistChannelModule(this));
@@ -681,10 +681,10 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             reloadModule("Death Penalty", wantDeath, () -> new DeathPenaltyModule(this));
             reloadModule("pvp-module", wantPvp, () -> new PvPModule(this));
             reloadModule("totemenhancements", wantTotem, () -> new TotemEnhancementsModule(this));
-            reloadModule("utility-tools", wantUtilityTools, () -> new UtilityCommandsModule(this));
+            reloadModule("essentials", wantUtilityTools, () -> new EssentialsModule(this));
 
-            CeleryModule utilModule = modules.get("utility-tools");
-            if (utilModule instanceof UtilityCommandsModule ucm) {
+            CeleryModule utilModule = modules.get("essentials");
+            if (utilModule instanceof EssentialsModule ucm) {
                 for (String warning : ucm.getMotdInitWarnings()) {
                     sender.sendMessage("§e" + warning);
                 }
@@ -736,7 +736,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
     }
 
     private void cleanupDisabledModuleCommands() {
-        if (!modules.containsKey("utility-tools")) {
+        if (!modules.containsKey("essentials")) {
             unregisterCommand("afk");
             unregisterCommand("killall");
             unregisterCommand("gm");
