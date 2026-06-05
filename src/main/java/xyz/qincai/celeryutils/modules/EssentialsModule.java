@@ -287,7 +287,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
 
             if (isAfk) {
                 if (titleEnabled && afkTitle != null) {
-                    player.sendTitle(afkTitle, afkSubtitle, 0, 80, 0);
+                    player.sendTitle(afkTitle, afkSubtitle);
                 }
 
                 if (kickTimeoutSeconds >= 0) {
@@ -771,7 +771,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
             if (config.getBoolean("afk.title-enabled", true)) {
                 Component title = parseComponent(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>"));
                 Component subtitle = parseComponent(config.getString("afk.subtitle-text", "<gray>Move to return</gray>"));
-                player.sendTitle(title, subtitle, 10, Integer.MAX_VALUE, 10);
+                player.sendTitle(title, subtitle);
             }
 
             if (config.getBoolean("afk.protection.no-push", false)) {
