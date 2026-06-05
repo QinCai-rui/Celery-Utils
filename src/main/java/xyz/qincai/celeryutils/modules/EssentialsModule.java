@@ -3,6 +3,7 @@ package xyz.qincai.celeryutils.modules;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -270,8 +271,8 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         String kickBypass = config.getString("afk.kick-bypass-permission", "celeryutils.afk.bypass");
         String kickMessage = ChatColor.translateAlternateColorCodes('&', config.getString("messages.afk-kick", "&cKicked for being AFK too long."));
         boolean titleEnabled = config.getBoolean("afk.title-enabled", true);
-        String afkTitle = titleEnabled ? config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>") : null;
-        String afkSubtitle = titleEnabled ? config.getString("afk.subtitle-text", "<gray>Move to return</gray>") : null;
+        Component afkTitle = titleEnabled ? MiniMessage.miniMessage().deserialize(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>")) : null;
+        Component afkSubtitle = titleEnabled ? MiniMessage.miniMessage().deserialize(config.getString("afk.subtitle-text", "<gray>Move to return</gray>")) : null;
 
         long now = System.currentTimeMillis();
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -287,7 +288,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
 
             if (isAfk) {
                 if (titleEnabled && afkTitle != null) {
-                    player.sendTitle(miniMessageToLegacy(afkTitle), miniMessageToLegacy(afkSubtitle));
+                    player.showTitle(Title.title(afkTitle, afkSubtitle));
                 }
 
                 if (kickTimeoutSeconds >= 0) {
@@ -769,9 +770,9 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
             }
 
             if (config.getBoolean("afk.title-enabled", true)) {
-                String title = miniMessageToLegacy(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>"));
-                String subtitle = miniMessageToLegacy(config.getString("afk.subtitle-text", "<gray>Move to return</gray>"));
-                player.sendTitle(title, subtitle);
+                Component title = MiniMessage.miniMessage().deserialize(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>"));
+                Component subtitle = MiniMessage.miniMessage().deserialize(config.getString("afk.subtitle-text", "<gray>Move to return</gray>"));
+                player.showTitle(Title.title(title, subtitle));
             }
 
             if (config.getBoolean("afk.protection.no-push", false)) {
