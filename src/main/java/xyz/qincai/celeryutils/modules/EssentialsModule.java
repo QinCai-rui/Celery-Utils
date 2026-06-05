@@ -87,7 +87,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     private final Random random = new Random();
     private BukkitTask afkTask;
     private FileConfiguration config;
-    private PluginCommand afkCommand;
+    private Command afkCommand;
     private PluginCommand killallCommand;
     private PluginCommand gmCommand;
     private PluginCommand tempbanCommand;
@@ -165,15 +165,21 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         boolean afkModuleEnabled = config.getBoolean("afk.enabled", true)
                 && config.getBoolean("afk.command-enabled", true);
         if (afkModuleEnabled) {
-            PluginCommand cmd = new PluginCommand("afk", plugin);
-            this.afkCommand = cmd;
-            cmd.setExecutor(this);
-            cmd.setTabCompleter(this);
-            cmd.setDescription("Toggle AFK status");
-            cmd.setUsage("/afk");
+            Command cmd = new Command("afk", "Toggle AFK status", "/afk", List.of()) {
+                @Override
+                public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+                    return onCommand(sender, this, commandLabel, args);
+                }
+
+                @Override
+                public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+                    return EssentialsModule.this.onTabComplete(sender, this, alias, args);
+                }
+            };
             commandMap.register("afk", plugin.getName(), cmd);
+            afkCommand = cmd;
         } else {
-            this.afkCommand = null;
+            afkCommand = null;
         }
         setupSingleCommand("killall", "killall.enabled", true,
                 cmd -> this.killallCommand = cmd,
