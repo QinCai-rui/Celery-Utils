@@ -39,6 +39,10 @@ commands:
     description: Kick all players from the server
     usage: /kickall [reason]
     permission: celeryutils.kickall
+  tips:
+    description: Display server tips and tricks
+    usage: /tips [page]
+    permission: celeryutils.tips
 
 permissions:
   celeryutils.pvp:
@@ -68,3 +72,6 @@ permissions:
   celeryutils.kickall:
     description: Permission to run /kickall
     default: op
+  celeryutils.tips:
+    description: Permission to use /tips
+    default: true

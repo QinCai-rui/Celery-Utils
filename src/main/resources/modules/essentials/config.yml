@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 6
+config-version: 7
 
 afk:
   # Set to true to enable the AFK system
@@ -109,6 +109,22 @@ motd:
 
   # Rotation mode: SEQUENTIAL or RANDOM.
   rotation-mode: SEQUENTIAL
+
+tips:
+  # Set to false to disable the /tips command.
+  enabled: true
+
+  # File containing the tip entries (relative to modules/essentials/).
+  tips-file: "tips.yml"
+
+  # Permission required to use /tips. Leave blank for no permission requirement.
+  command-permission: "celeryutils.tips"
+
+  # Number of tips displayed per page.
+  per-page: 5
+
+  # Title shown at the top of the tips list. Supports MiniMessage.
+  title: "<gold><bold>Tips</bold></gold>"
 
 messages:
   no-permission: "&cYou do not have permission to use this command."

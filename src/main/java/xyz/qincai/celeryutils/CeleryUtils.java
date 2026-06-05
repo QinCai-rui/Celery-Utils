@@ -83,6 +83,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
         upgradeConfig("modules/essentials/config.yml", new File(getDataFolder(), "modules/essentials/config.yml"), "Utility Tools module config");
         saveResourceIfAbsent("modules/essentials/motds.yml");
+        saveResourceIfAbsent("modules/essentials/tips.yml");
 
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize(getConfig().getConfigurationSection("database"));
@@ -662,6 +663,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             upgradeConfig("modules/totemenhancements/config.yml", new File(getDataFolder(), "modules/totemenhancements/config.yml"), "TotemEnhancements module config");
             upgradeConfig("modules/essentials/config.yml", new File(getDataFolder(), "modules/essentials/config.yml"), "Utility Tools module config");
             saveResourceIfAbsent("modules/essentials/motds.yml");
+            saveResourceIfAbsent("modules/essentials/tips.yml");
 
             // Reload plugin config again after upgrade so the latest values are loaded.
             reloadConfig();
@@ -742,6 +744,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             unregisterCommand("gm");
             unregisterCommand("tempban");
             unregisterCommand("kickall");
+            unregisterCommand("tips");
         }
         if (!modules.containsKey("pvp-module")) {
             unregisterCommand("pvp");
@@ -795,10 +798,11 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§fTotemEnhancements §7- §7Enhances totems with inventory activation, death broadcasts, and more.");
                 sender.sendMessage("§fUtility Tools §7- §7Includes /afk and /killall with auto AFK detection and cleanup controls.");
             }
-            case "utility", "afk", "killall" -> {
+            case "utility", "afk", "killall", "tips" -> {
                 sender.sendMessage("§b§lCeleryUtils §7- §fUtility Tools Help");
                 sender.sendMessage("§f/afk §7- §7Toggle your AFK state manually");
                 sender.sendMessage("§f/killall <target> [world] §7- §7Remove entities by selector or exact type");
+                sender.sendMessage("§f/tips [page] §7- §7Browse configurable server tips with a paged interface");
             }
             case "status", "version" -> {
                 sender.sendMessage("§b§lCeleryUtils §7- §fStatus Help");

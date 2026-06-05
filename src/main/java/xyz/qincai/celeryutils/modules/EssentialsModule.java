@@ -1,8 +1,12 @@
 package xyz.qincai.celeryutils.modules;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.event.ClickEvent;
+import net.kyori.adventure.event.HoverEvent;
 import net.kyori.adventure.title.Title;
 import java.time.Duration;
 import org.bukkit.Bukkit;
@@ -95,6 +99,12 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     private BukkitTask motdRotationTask;
     private final List<String> motdInitWarnings = new ArrayList<>();
 
+    private PluginCommand tipsCommand;
+    private FileConfiguration tipsConfig;
+    private List<Component> tipsList = Collections.emptyList();
+    private int perPage = 5;
+    private Component tipsTitle;
+
     private static final List<String> KILLALL_SELECTORS = List.of(
             "items",
             "hostile",
@@ -145,6 +155,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
 
         initializeMotd();
+        initializeTips();
         return true;
     }
 
@@ -166,6 +177,9 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         setupSingleCommand("kickall", "kickall.enabled", true,
                 cmd -> this.kickallCommand = cmd,
                 () -> this.kickallCommand);
+        setupSingleCommand("tips", "tips.enabled", true,
+                cmd -> this.tipsCommand = cmd,
+                () -> this.tipsCommand);
 
         return true;
     }
@@ -223,6 +237,9 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
         if (kickallCommand != null) {
             kickallCommand.unregister(commandMap);
+        }
+        if (tipsCommand != null) {
+            tipsCommand.unregister(commandMap);
         }
 
         for (BukkitTask task : tempbanTasks.values()) {
@@ -322,6 +339,9 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
         if (command.getName().equalsIgnoreCase("kickall")) {
             return handleKickallCommand(sender, args);
+        }
+        if (command.getName().equalsIgnoreCase("tips")) {
+            return handleTipsCommand(sender, args);
         }
         return false;
     }
@@ -824,6 +844,18 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         if (command.getName().equalsIgnoreCase("kickall")) {
             return Collections.emptyList();
         }
+        if (command.getName().equalsIgnoreCase("tips")) {
+            if (args.length == 1 && !tipsList.isEmpty()) {
+                int totalPages = (tipsList.size() + perPage - 1) / perPage;
+                List<String> pages = new ArrayList<>();
+                for (int i = 1; i <= totalPages; i++) {
+                    pages.add(String.valueOf(i));
+                }
+                return partialMatch(args[0], pages);
+            }
+            return Collections.emptyList();
+        }
+
         if (!command.getName().equalsIgnoreCase("killall")) {
             return Collections.emptyList();
         }
@@ -1069,6 +1101,138 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
 
         motdComponents = components.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(components);
+    }
+
+    private void initializeTips() {
+        if (!config.getBoolean("tips.enabled", true)) {
+            tipsList = Collections.emptyList();
+            return;
+        }
+
+        String tipsFile = config.getString("tips.tips-file", "tips.yml");
+        if (tipsFile == null || tipsFile.isBlank()) {
+            tipsFile = "tips.yml";
+        }
+        tipsFile = tipsFile.trim();
+
+        File file = new File(plugin.getDataFolder(), "modules/essentials/" + tipsFile);
+        if (!file.exists()) {
+            tipsList = Collections.emptyList();
+            return;
+        }
+
+        tipsConfig = YamlConfiguration.loadConfiguration(file);
+
+        perPage = Math.max(1, config.getInt("tips.per-page", 5));
+
+        String titleStr = config.getString("tips.title", "<gold><bold>Tips & Tricks</bold></gold>");
+        tipsTitle = parseComponent(titleStr);
+
+        List<String> rawTips = tipsConfig.getStringList("tips");
+        if (rawTips.isEmpty()) {
+            tipsList = Collections.emptyList();
+            return;
+        }
+
+        List<Component> components = new ArrayList<>();
+        for (String raw : rawTips) {
+            if (raw != null && !raw.isBlank()) {
+                components.add(parseComponent(raw));
+            }
+        }
+        tipsList = Collections.unmodifiableList(components);
+    }
+
+    private boolean handleTipsCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(color("&cOnly players can use /tips."));
+            return true;
+        }
+
+        String permission = config.getString("tips.command-permission");
+        if (permission != null && !permission.isBlank() && !player.hasPermission(permission)) {
+            player.sendMessage(color(config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
+            return true;
+        }
+
+        if (tipsList.isEmpty()) {
+            player.sendMessage(color("&cNo tips are available."));
+            return true;
+        }
+
+        int page = 1;
+        if (args.length > 0) {
+            try {
+                page = Integer.parseInt(args[0]);
+                if (page < 1) page = 1;
+            } catch (NumberFormatException ignored) {
+                sendMsg(player, "<red>Invalid page number: </red><white>" + args[0] + "</white>");
+                return true;
+            }
+        }
+
+        sendTipsPage(player, page);
+        return true;
+    }
+
+    private void sendTipsPage(Player player, int page) {
+        int totalPages = (tipsList.size() + perPage - 1) / perPage;
+        page = Math.max(1, Math.min(page, totalPages));
+
+        int from = (page - 1) * perPage;
+        int to = Math.min(from + perPage, tipsList.size());
+
+        Component separator = Component.text("─".repeat(Math.min(45, 45)))
+                .color(NamedTextColor.DARK_GRAY);
+
+        player.sendMessage(tipsTitle);
+        player.sendMessage(separator);
+
+        for (int i = from; i < to; i++) {
+            Component numbered = Component.text((i + 1) + ". ")
+                    .color(NamedTextColor.GOLD)
+                    .append(tipsList.get(i));
+            player.sendMessage(numbered);
+        }
+
+        if (totalPages <= 1) {
+            return;
+        }
+
+        player.sendMessage(separator);
+
+        Component prev;
+        if (page > 1) {
+            prev = Component.text("  « Previous  ")
+                    .color(NamedTextColor.GOLD)
+                    .clickEvent(ClickEvent.runCommand("/tips " + (page - 1)))
+                    .hoverEvent(HoverEvent.showText(
+                            Component.text("Go to page " + (page - 1))));
+        } else {
+            prev = Component.text("  « Previous  ")
+                    .color(NamedTextColor.DARK_GRAY);
+        }
+
+        Component pageIndicator = Component.text("Page " + page + "/" + totalPages)
+                .color(NamedTextColor.WHITE);
+
+        Component next;
+        if (page < totalPages) {
+            next = Component.text("  Next »  ")
+                    .color(NamedTextColor.GOLD)
+                    .clickEvent(ClickEvent.runCommand("/tips " + (page + 1)))
+                    .hoverEvent(HoverEvent.showText(
+                            Component.text("Go to page " + (page + 1))));
+        } else {
+            next = Component.text("  Next »  ")
+                    .color(NamedTextColor.DARK_GRAY);
+        }
+
+        Component nav = Component.join(
+                JoinConfiguration.noSeparators(),
+                prev, pageIndicator, next
+        );
+        player.sendMessage(nav);
     }
 
     private Component parseMotdComponent(String text) {
