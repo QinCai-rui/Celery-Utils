@@ -188,6 +188,7 @@ public final class UpdateChecker {
                 File targetFile = new File(updateFolder, "CeleryUtils-" + latestVersion + ".jar");
 
                 if (targetFile.exists()) {
+                    cleanOldUpdateFiles(latestVersion);
                     plugin.getLogger().info("CeleryUtils update (" + latestVersion + ") is already downloaded and pending restart/reload.");
                     return UpdateResult.UPDATE_DOWNLOADED;
                 } else {
@@ -241,6 +242,8 @@ public final class UpdateChecker {
         try {
             File updateFolder = plugin.getServer().getUpdateFolderFile();
 
+            cleanOldUpdateFiles(version);
+
             if (!updateFolder.exists() && !updateFolder.mkdirs()) {
                 plugin.getLogger().warning("Could not create update folder.");
                 return false;
@@ -285,6 +288,29 @@ public final class UpdateChecker {
             );
 
             return false;
+        }
+    }
+
+    private void cleanOldUpdateFiles(String keepVersion) {
+        File updateFolder = plugin.getServer().getUpdateFolderFile();
+        if (!updateFolder.exists()) {
+            return;
+        }
+        File[] oldFiles = updateFolder.listFiles((dir, name) ->
+                name.startsWith("CeleryUtils-") && name.endsWith(".jar"));
+        if (oldFiles == null) {
+            return;
+        }
+        for (File oldFile : oldFiles) {
+            String name = oldFile.getName();
+            if (name.equals("CeleryUtils-" + keepVersion + ".jar")) {
+                continue;
+            }
+            if (oldFile.delete()) {
+                plugin.getLogger().info("Deleted old update file: " + name);
+            } else {
+                plugin.getLogger().warning("Failed to delete old update file: " + name);
+            }
         }
     }
 
