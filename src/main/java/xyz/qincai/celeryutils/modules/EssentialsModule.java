@@ -162,9 +162,27 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     private boolean setupCommands() {
         CommandMap commandMap = Bukkit.getCommandMap();
 
-        setupSingleCommand("afk", "afk.command-enabled", true,
-                cmd -> this.afkCommand = cmd,
-                () -> this.afkCommand);
+        boolean afkModuleEnabled = config.getBoolean("afk.enabled", true)
+                && config.getBoolean("afk.command-enabled", true);
+        if (afkModuleEnabled) {
+            PluginCommand cmd = plugin.getPluginCommand("afk");
+            if (cmd != null) {
+                this.afkCommand = cmd;
+                ensureCommandRegistered(commandMap, "afk", cmd);
+                cmd.setExecutor(this);
+                cmd.setTabCompleter(this);
+            } else {
+                plugin.getLogger().warning("Command /afk is missing in plugin.yml");
+            }
+        } else {
+            plugin.unregisterCommand("afk");
+            PluginCommand cmd = plugin.getPluginCommand("afk");
+            if (cmd != null) {
+                cmd.setExecutor(null);
+                cmd.setTabCompleter(null);
+            }
+            this.afkCommand = null;
+        }
         setupSingleCommand("killall", "killall.enabled", true,
                 cmd -> this.killallCommand = cmd,
                 () -> this.killallCommand);
@@ -349,6 +367,10 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     private boolean handleAfkCommand(CommandSender sender) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(color("&cOnly players can use /afk."));
+            return true;
+        }
+        if (!config.getBoolean("afk.enabled", true)) {
+            player.sendMessage(color("&cAFK is disabled on this server."));
             return true;
         }
         if (!config.getBoolean("afk.command-enabled", true)) {
@@ -747,7 +769,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         UUID uuid = player.getUniqueId();
         lastActivityMillis.put(uuid, now);
 
-        if (afkPlayers.contains(uuid) && !manuallyAfk.contains(uuid)) {
+        if (afkPlayers.contains(uuid)) {
             setAfk(player, false, false);
             player.sendMessage(color(config.getString("messages.afk-disabled-auto", "&aYou are no longer AFK due to activity.")));
         }
