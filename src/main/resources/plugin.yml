@@ -20,10 +20,6 @@ commands:
     description: Toggle PvP loadout or manage gear
     usage: /pvp <toggle|gear>
     permission: celeryutils.pvp
-  afk:
-    description: Toggle AFK status
-    usage: /afk
-    permission: celeryutils.afk
   killall:
     description: Remove entities by category or type
     usage: /killall <selector|entity_type> [world]

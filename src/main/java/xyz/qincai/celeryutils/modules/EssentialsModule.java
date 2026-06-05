@@ -165,22 +165,14 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         boolean afkModuleEnabled = config.getBoolean("afk.enabled", true)
                 && config.getBoolean("afk.command-enabled", true);
         if (afkModuleEnabled) {
-            PluginCommand cmd = plugin.getPluginCommand("afk");
-            if (cmd != null) {
-                this.afkCommand = cmd;
-                ensureCommandRegistered(commandMap, "afk", cmd);
-                cmd.setExecutor(this);
-                cmd.setTabCompleter(this);
-            } else {
-                plugin.getLogger().warning("Command /afk is missing in plugin.yml");
-            }
+            PluginCommand cmd = new PluginCommand("afk", plugin);
+            this.afkCommand = cmd;
+            cmd.setExecutor(this);
+            cmd.setTabCompleter(this);
+            cmd.setDescription("Toggle AFK status");
+            cmd.setUsage("/afk");
+            commandMap.register("afk", plugin.getName(), cmd);
         } else {
-            plugin.unregisterCommand("afk");
-            PluginCommand cmd = plugin.getPluginCommand("afk");
-            if (cmd != null) {
-                cmd.setExecutor(null);
-                cmd.setTabCompleter(null);
-            }
             this.afkCommand = null;
         }
         setupSingleCommand("killall", "killall.enabled", true,
