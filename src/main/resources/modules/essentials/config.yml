@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 5
+config-version: 6
 
 afk:
   # Set to true to enable the AFK system
@@ -28,6 +28,27 @@ afk:
 
   # The prefix shown in TAB while a player is AFK. Supports MiniMessage.
   tab-placeholder: "<gray>[AFK]</gray> "
+
+  # Show a big title when the player becomes AFK.
+  title-enabled: true
+
+  # The title text shown to AFK players. Supports MiniMessage.
+  title-text: "<red><bold>You are AFK</bold></red>"
+
+  # The subtitle text shown below the title. Supports MiniMessage.
+  subtitle-text: "<gray>Move to return</gray>"
+
+  # If true, looking around (yaw/pitch change) will reset the inactivity timer.
+  un-afk-on-camera-move: false
+
+  # Protection from damage/push/targeting while AFK.
+  protection:
+    # Player cannot take any damage while AFK.
+    invulnerable: false
+    # Player cannot be pushed by entities while AFK.
+    no-push: false
+    # Mobs will not target the player while AFK.
+    no-mob-targeting: false
 
 killall:
   # Set to false to disable /killall command handling.

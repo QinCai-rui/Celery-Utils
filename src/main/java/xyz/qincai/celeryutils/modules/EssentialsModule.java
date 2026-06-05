@@ -42,6 +42,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.server.ServerListPingEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.scheduler.BukkitTask;
@@ -267,27 +269,36 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         int kickTimeoutSeconds = config.getInt("afk.kick-timeout-seconds", -1);
         String kickBypass = config.getString("afk.kick-bypass-permission", "celeryutils.afk.bypass");
         String kickMessage = ChatColor.translateAlternateColorCodes('&', config.getString("messages.afk-kick", "&cKicked for being AFK too long."));
+        boolean titleEnabled = config.getBoolean("afk.title-enabled", true);
+        Component afkTitle = titleEnabled ? parseComponent(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>")) : null;
+        Component afkSubtitle = titleEnabled ? parseComponent(config.getString("afk.subtitle-text", "<gray>Move to return</gray>")) : null;
 
         long now = System.currentTimeMillis();
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID uuid = player.getUniqueId();
             long lastActivity = lastActivityMillis.getOrDefault(uuid, now);
 
-            if (!afkPlayers.contains(uuid) && (now - lastActivity) >= (timeoutSeconds * 1000L)) {
+            boolean isAfk = afkPlayers.contains(uuid);
+
+            if (!isAfk && (now - lastActivity) >= (timeoutSeconds * 1000L)) {
                 setAfk(player, true, false);
+                isAfk = true;
             }
 
-            if (kickTimeoutSeconds < 0 || !afkPlayers.contains(uuid)) {
-                continue;
-            }
-            if (kickBypass != null && !kickBypass.isBlank() && player.hasPermission(kickBypass)) {
-                continue;
-            }
+            if (isAfk) {
+                if (titleEnabled && afkTitle != null) {
+                    player.sendTitle(afkTitle, afkSubtitle, 0, 80, 0);
+                }
 
-            long afkSince = afkSinceMillis.getOrDefault(uuid, now);
-            if ((now - afkSince) >= (kickTimeoutSeconds * 1000L)) {
-                player.kickPlayer(kickMessage);
-                clearAfkState(uuid);
+                if (kickTimeoutSeconds >= 0) {
+                    if (kickBypass == null || kickBypass.isBlank() || !player.hasPermission(kickBypass)) {
+                        long afkSince = afkSinceMillis.getOrDefault(uuid, now);
+                        if ((now - afkSince) >= (kickTimeoutSeconds * 1000L)) {
+                            player.kickPlayer(kickMessage);
+                            clearAfkState(uuid);
+                        }
+                    }
+                }
             }
         }
     }
@@ -607,44 +618,71 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (event.getTo() == null) {
+        if (event.getTo() == null) return;
+
+        Player player = event.getPlayer();
+
+        boolean moved = event.getFrom().getX() != event.getTo().getX()
+                || event.getFrom().getY() != event.getTo().getY()
+                || event.getFrom().getZ() != event.getTo().getZ();
+
+        if (moved) {
+            markActivity(player);
             return;
         }
-        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
-                && event.getFrom().getBlockY() == event.getTo().getBlockY()
-                && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
-            return;
+
+        if (config.getBoolean("afk.un-afk-on-camera-move", false)) {
+            if (event.getFrom().getYaw() != event.getTo().getYaw()
+                    || event.getFrom().getPitch() != event.getTo().getPitch()) {
+                markActivity(player);
+            }
         }
-        markActivity(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onInteract(PlayerInteractEvent event) {
         markActivity(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onItemHeld(PlayerItemHeldEvent event) {
         markActivity(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryClick(InventoryClickEvent event) {
         if (event.getWhoClicked() instanceof Player player) {
             markActivity(player);
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onChat(AsyncPlayerChatEvent event) {
         markActivity(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onCommandPreprocess(PlayerCommandPreprocessEvent event) {
         markActivity(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEntityDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!config.getBoolean("afk.protection.invulnerable", false)) return;
+        if (afkPlayers.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEntityTarget(EntityTargetEvent event) {
+        if (!config.getBoolean("afk.protection.no-mob-targeting", false)) return;
+        if (event.getTarget() instanceof Player player && afkPlayers.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+        }
     }
 
     // Shows a detailed kick message for tempbanned players, using MiniMessage formatting
@@ -729,6 +767,16 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
                 String prefix = miniMessageToLegacy(config.getString("afk.tab-placeholder", "<gray>[AFK]</gray> "));
                 player.setPlayerListName(prefix + original);
             }
+
+            if (config.getBoolean("afk.title-enabled", true)) {
+                Component title = parseComponent(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>"));
+                Component subtitle = parseComponent(config.getString("afk.subtitle-text", "<gray>Move to return</gray>"));
+                player.sendTitle(title, subtitle, 10, Integer.MAX_VALUE, 10);
+            }
+
+            if (config.getBoolean("afk.protection.no-push", false)) {
+                player.setCollidable(false);
+            }
             return;
         }
 
@@ -740,6 +788,14 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         String previousName = originalTabNames.remove(uuid);
         if (previousName != null) {
             player.setPlayerListName(previousName);
+        }
+
+        if (config.getBoolean("afk.protection.no-push", false)) {
+            player.setCollidable(true);
+        }
+
+        if (config.getBoolean("afk.title-enabled", true)) {
+            player.clearTitle();
         }
     }
 
