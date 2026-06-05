@@ -270,8 +270,8 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         String kickBypass = config.getString("afk.kick-bypass-permission", "celeryutils.afk.bypass");
         String kickMessage = ChatColor.translateAlternateColorCodes('&', config.getString("messages.afk-kick", "&cKicked for being AFK too long."));
         boolean titleEnabled = config.getBoolean("afk.title-enabled", true);
-        Component afkTitle = titleEnabled ? parseComponent(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>")) : null;
-        Component afkSubtitle = titleEnabled ? parseComponent(config.getString("afk.subtitle-text", "<gray>Move to return</gray>")) : null;
+        String afkTitle = titleEnabled ? config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>") : null;
+        String afkSubtitle = titleEnabled ? config.getString("afk.subtitle-text", "<gray>Move to return</gray>") : null;
 
         long now = System.currentTimeMillis();
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -287,7 +287,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
 
             if (isAfk) {
                 if (titleEnabled && afkTitle != null) {
-                    player.sendTitle(afkTitle, afkSubtitle);
+                    player.sendTitle(miniMessageToLegacy(afkTitle), miniMessageToLegacy(afkSubtitle));
                 }
 
                 if (kickTimeoutSeconds >= 0) {
@@ -769,8 +769,8 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
             }
 
             if (config.getBoolean("afk.title-enabled", true)) {
-                Component title = parseComponent(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>"));
-                Component subtitle = parseComponent(config.getString("afk.subtitle-text", "<gray>Move to return</gray>"));
+                String title = miniMessageToLegacy(config.getString("afk.title-text", "<red><bold>YOU ARE AFK</bold></red>"));
+                String subtitle = miniMessageToLegacy(config.getString("afk.subtitle-text", "<gray>Move to return</gray>"));
                 player.sendTitle(title, subtitle);
             }
 
