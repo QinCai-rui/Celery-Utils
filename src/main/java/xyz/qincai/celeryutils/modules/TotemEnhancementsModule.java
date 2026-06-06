@@ -4,6 +4,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -135,8 +136,25 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
     private void broadcastDeathMessage(Player player) {
         String causeName = resolveDeathCause(player);
+        String broadcastMsg = null;
 
-        String broadcastMsg = config.getString("broadcast-messages.causes." + causeName);
+        if (causeName.equals("ENTITY_ATTACK") || causeName.equals("ENTITY_SWEEP_ATTACK")) {
+            String entityType = resolveEntityType(player);
+            if (entityType != null) {
+                broadcastMsg = config.getString("broadcast-messages.entity-attacks." + entityType);
+                if (broadcastMsg == null || broadcastMsg.isEmpty()) {
+                    String formattedEntity = formatEntityName(entityType);
+                    broadcastMsg = config.getString("broadcast-messages.entity-attacks.default");
+                    if (broadcastMsg != null) {
+                        broadcastMsg = broadcastMsg.replace("%entity%", formattedEntity);
+                    }
+                }
+            }
+        }
+
+        if (broadcastMsg == null || broadcastMsg.isEmpty()) {
+            broadcastMsg = config.getString("broadcast-messages.causes." + causeName);
+        }
         if (broadcastMsg == null || broadcastMsg.isEmpty()) {
             broadcastMsg = config.getString("broadcast-messages.default",
                     "%player% died but came back to life thanks to &e[Totem Of Undying]&r");
@@ -146,6 +164,32 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
             broadcastMsg = broadcastMsg.replace("%player%", player.getName());
             plugin.getServer().broadcastMessage(ChatColor.translateAlternateColorCodes('&', broadcastMsg));
         }
+    }
+
+    private String resolveEntityType(Player player) {
+        org.bukkit.event.entity.EntityDamageEvent event = player.getLastDamageCause();
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent) {
+            Entity damager = ((org.bukkit.event.entity.EntityDamageByEntityEvent) event).getDamager();
+            return damager.getType().name();
+        }
+        return null;
+    }
+
+    private String formatEntityName(String entityTypeName) {
+        StringBuilder result = new StringBuilder();
+        boolean nextUpperCase = true;
+        for (char c : entityTypeName.toCharArray()) {
+            if (c == '_') {
+                result.append(' ');
+                nextUpperCase = true;
+            } else if (nextUpperCase) {
+                result.append(Character.toUpperCase(c));
+                nextUpperCase = false;
+            } else {
+                result.append(Character.toLowerCase(c));
+            }
+        }
+        return result.toString();
     }
 
     private String resolveDeathCause(Player player) {
