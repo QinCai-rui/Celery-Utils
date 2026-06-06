@@ -16,29 +16,7 @@ commands:
     description: Main command for CeleryUtils
     usage: /celeryutils <subcommand>
     aliases: [cu]
-  pvp:
-    description: Toggle PvP loadout or manage gear
-    usage: /pvp <toggle|gear>
-    permission: celeryutils.pvp
-  killall:
-    description: Remove entities by category or type
-    usage: /killall <selector|entity_type> [world]
-    permission: celeryutils.killall
-  gm:
-    description: Quick gamemode switch
-    usage: /gm <mode>
-  tempban:
-    description: Temporarily ban a player
-    usage: /tempban <player> <minutes> [reason]
-    permission: celeryutils.tempban
-  kickall:
-    description: Kick all players from the server
-    usage: /kickall [reason]
-    permission: celeryutils.kickall
-  tips:
-    description: Display server tips and tricks
-    usage: /tips [page]
-    permission: celeryutils.tips
+
 
 permissions:
   celeryutils.pvp:

@@ -8,7 +8,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -60,7 +59,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
     private final Map<UUID, List<ItemStack>> dbLoadouts = new ConcurrentHashMap<>();
 
     private NamespacedKey pvpItemKey;
-    private PluginCommand pvpCommand;
+    private Command pvpCommand;
 
     public PvPModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -116,25 +115,19 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
 
         this.pvpItemKey = new NamespacedKey(plugin, "pvp_item");
 
-        PluginCommand cmd = plugin.getPluginCommand("pvp");
-        if (cmd != null) {
-            this.pvpCommand = cmd;
-        }
-        if (this.pvpCommand == null) {
-            plugin.getLogger().warning("PvP command not found in plugin.yml!");
-            return false;
-        }
+        pvpCommand = new Command("pvp", "Toggle PvP loadout or manage gear", "/pvp <toggle|gear>", List.of()) {
+            @Override
+            public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+                return onCommand(sender, this, commandLabel, args);
+            }
 
-        // Ensure command is registered in the CommandMap (it may have been unregistered)
+            @Override
+            public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+                return PvPModule.this.onTabComplete(sender, this, alias, args);
+            }
+        };
         CommandMap commandMap = Bukkit.getCommandMap();
-        Command existing = commandMap.getCommand("pvp");
-        if (!this.pvpCommand.equals(existing)) {
-            this.pvpCommand.unregister(commandMap);
-            commandMap.register("pvp", plugin.getName(), this.pvpCommand);
-        }
-
-        this.pvpCommand.setExecutor(this);
-        this.pvpCommand.setTabCompleter(this);
+        commandMap.register("pvp", plugin.getName(), pvpCommand);
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
 

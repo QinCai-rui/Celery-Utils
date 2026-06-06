@@ -17,7 +17,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -71,9 +70,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 
 public class EssentialsModule implements CeleryModule, Listener, CommandExecutor, TabCompleter {
@@ -88,10 +85,10 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     private BukkitTask afkTask;
     private FileConfiguration config;
     private Command afkCommand;
-    private PluginCommand killallCommand;
-    private PluginCommand gmCommand;
-    private PluginCommand tempbanCommand;
-    private PluginCommand kickallCommand;
+    private Command killallCommand;
+    private Command gmCommand;
+    private Command tempbanCommand;
+    private Command kickallCommand;
     private final Map<UUID, BukkitTask> tempbanTasks = new HashMap<>();
 
     private List<Component> motdComponents = Collections.emptyList();
@@ -99,7 +96,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     private BukkitTask motdRotationTask;
     private final List<String> motdInitWarnings = new ArrayList<>();
 
-    private PluginCommand tipsCommand;
+    private Command tipsCommand;
     private FileConfiguration tipsConfig;
     private List<Component> tipsList = Collections.emptyList();
     private int perPage = 5;
@@ -159,80 +156,64 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         return true;
     }
 
+    private Command makeCommand(String name, String description) {
+        return new Command(name, description, "/" + name, List.of()) {
+            @Override
+            public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+                return onCommand(sender, this, commandLabel, args);
+            }
+
+            @Override
+            public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+                return EssentialsModule.this.onTabComplete(sender, this, alias, args);
+            }
+        };
+    }
+
     private boolean setupCommands() {
         CommandMap commandMap = Bukkit.getCommandMap();
 
         boolean afkModuleEnabled = config.getBoolean("afk.enabled", true)
                 && config.getBoolean("afk.command-enabled", true);
         if (afkModuleEnabled) {
-            Command cmd = new Command("afk", "Toggle AFK status", "/afk", List.of()) {
-                @Override
-                public boolean execute(CommandSender sender, String commandLabel, String[] args) {
-                    return onCommand(sender, this, commandLabel, args);
-                }
-
-                @Override
-                public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
-                    return EssentialsModule.this.onTabComplete(sender, this, alias, args);
-                }
-            };
-            commandMap.register("afk", plugin.getName(), cmd);
-            afkCommand = cmd;
+            afkCommand = makeCommand("afk", "Toggle AFK status");
+            commandMap.register("afk", plugin.getName(), afkCommand);
         } else {
             afkCommand = null;
         }
-        setupSingleCommand("killall", "killall.enabled", true,
-                cmd -> this.killallCommand = cmd,
-                () -> this.killallCommand);
-        setupSingleCommand("gm", null, null,
-                cmd -> this.gmCommand = cmd,
-                () -> this.gmCommand);
-        setupSingleCommand("tempban", "tempban.enabled", true,
-                cmd -> this.tempbanCommand = cmd,
-                () -> this.tempbanCommand);
-        setupSingleCommand("kickall", "kickall.enabled", true,
-                cmd -> this.kickallCommand = cmd,
-                () -> this.kickallCommand);
-        setupSingleCommand("tips", "tips.enabled", true,
-                cmd -> this.tipsCommand = cmd,
-                () -> this.tipsCommand);
+
+        if (config.getBoolean("killall.enabled", true)) {
+            killallCommand = makeCommand("killall", "Remove entities by category or type");
+            commandMap.register("killall", plugin.getName(), killallCommand);
+        } else {
+            killallCommand = null;
+        }
+
+        gmCommand = makeCommand("gm", "Quick gamemode switch");
+        commandMap.register("gm", plugin.getName(), gmCommand);
+
+        if (config.getBoolean("tempban.enabled", true)) {
+            tempbanCommand = makeCommand("tempban", "Temporarily ban a player");
+            commandMap.register("tempban", plugin.getName(), tempbanCommand);
+        } else {
+            tempbanCommand = null;
+        }
+
+        if (config.getBoolean("kickall.enabled", true)) {
+            kickallCommand = makeCommand("kickall", "Kick all players from the server");
+            commandMap.register("kickall", plugin.getName(), kickallCommand);
+        } else {
+            kickallCommand = null;
+        }
+
+        if (config.getBoolean("tips.enabled", true)) {
+            tipsCommand = makeCommand("tips", "Display server tips and tricks");
+            commandMap.register("tips", plugin.getName(), tipsCommand);
+        } else {
+            tipsCommand = null;
+        }
 
         return true;
-    }
-
-    private void setupSingleCommand(String name, String configPath, Boolean configDefault,
-                                     Consumer<PluginCommand> setter, Supplier<PluginCommand> getter) {
-        boolean enabled = configPath == null || config.getBoolean(configPath, configDefault);
-        if (enabled) {
-            PluginCommand cmd = plugin.getPluginCommand(name);
-            if (cmd != null) {
-                setter.accept(cmd);
-                CommandMap commandMap = Bukkit.getCommandMap();
-                ensureCommandRegistered(commandMap, name, cmd);
-                cmd.setExecutor(this);
-                cmd.setTabCompleter(this);
-                return;
-            }
-            plugin.getLogger().warning("Command /" + name + " is missing in plugin.yml");
-        } else {
-            // Unregister to clean up from a previous registration during reload
-            plugin.unregisterCommand(name);
-            PluginCommand cmd = getter.get();
-            if (cmd != null) {
-                cmd.setExecutor(null);
-                cmd.setTabCompleter(null);
-            }
-            setter.accept(null);
-        }
-    }
-
-    private void ensureCommandRegistered(CommandMap commandMap, String name, PluginCommand command) {
-        Command existing = commandMap.getCommand(name);
-        if (command.equals(existing)) {
-            return;
-        }
-        command.unregister(commandMap);
-        commandMap.register(name, plugin.getName(), command);
     }
 
     @Override

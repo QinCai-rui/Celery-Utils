@@ -1,8 +1,6 @@
 package xyz.qincai.celeryutils;
 
 import org.bukkit.Bukkit;
-import org.bukkit.command.CommandMap;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -54,7 +52,6 @@ public class CeleryUtils extends JavaPlugin implements Listener {
 
     private static CeleryUtils instance;
     private final Map<String, CeleryModule> modules = new HashMap<>();
-    private final Map<String, PluginCommand> storedCommands = new HashMap<>();
     private UpdateChecker updateChecker;
     private DatabaseManager databaseManager;
     private NamespaceLogCleaner namespaceLogCleaner;
@@ -92,18 +89,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         updateChecker.start();
         getServer().getPluginManager().registerEvents(this, this);
 
-        // Capture all PluginCommand references before any module touches them
-        for (String cmdName : getDescription().getCommands().keySet()) {
-            PluginCommand cmd = getCommand(cmdName);
-            if (cmd != null) {
-                storedCommands.put(cmdName.toLowerCase(), cmd);
-            }
-        }
-
         initializeModules();
-
-        // Unregister commands for modules that are not loaded, so other plugins can use them
-        cleanupDisabledModuleCommands();
 
         getLogger().info("CeleryUtils enabled successfully!");
     }
@@ -378,26 +364,6 @@ public class CeleryUtils extends JavaPlugin implements Listener {
 
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
-    }
-
-    public PluginCommand getPluginCommand(String name) {
-        String key = name.toLowerCase();
-        PluginCommand cmd = getCommand(name);
-        if (cmd != null) {
-            storedCommands.put(key, cmd);
-            return cmd;
-        }
-        return storedCommands.get(key);
-    }
-
-    public void unregisterCommand(String name) {
-        CommandMap commandMap = Bukkit.getCommandMap();
-        if (commandMap == null) return;
-        Command command = commandMap.getCommand(name);
-        if (command != null) {
-            command.unregister(commandMap);
-            getLogger().fine("Unregistered command: /" + name);
-        }
     }
 
     private void initializeModules() {
@@ -735,20 +701,6 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             return getConfig().getBoolean(primaryKey, true);
         }
         return getConfig().getBoolean(legacyKey, true);
-    }
-
-    private void cleanupDisabledModuleCommands() {
-        if (!modules.containsKey("essentials")) {
-            unregisterCommand("afk");
-            unregisterCommand("killall");
-            unregisterCommand("gm");
-            unregisterCommand("tempban");
-            unregisterCommand("kickall");
-            unregisterCommand("tips");
-        }
-        if (!modules.containsKey("pvp-module")) {
-            unregisterCommand("pvp");
-        }
     }
 
     private void sendHelp(CommandSender sender, int page) {
