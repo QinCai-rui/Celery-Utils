@@ -1,40 +1,16 @@
 package xyz.qincai.celeryutils.modules;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.JoinConfiguration;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.title.Title;
 import java.time.Duration;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
-import org.bukkit.World;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandMap;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
+import xyz.qincai.celeryutils.command.CommandRegistrar;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Ambient;
-import org.bukkit.entity.Animals;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.ExperienceOrb;
-import org.bukkit.entity.Golem;
-import org.bukkit.entity.Item;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
-import org.bukkit.entity.Vehicle;
-import org.bukkit.entity.Villager;
-import org.bukkit.entity.WanderingTrader;
-import org.bukkit.entity.WaterMob;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -47,13 +23,16 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.server.ServerListPingEvent;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.scheduler.BukkitTask;
 import xyz.qincai.celeryutils.CeleryUtils;
 import xyz.qincai.celeryutils.api.CeleryModule;
+import xyz.qincai.celeryutils.command.AfkCommand;
+import xyz.qincai.celeryutils.command.GameModeCommand;
+import xyz.qincai.celeryutils.command.KickAllCommand;
+import xyz.qincai.celeryutils.command.KillAllCommand;
+import xyz.qincai.celeryutils.command.TempBanCommand;
+import xyz.qincai.celeryutils.command.TipsCommand;
 
 import java.io.File;
 import java.io.IOException;
@@ -73,7 +52,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 
-public class EssentialsModule implements CeleryModule, Listener, CommandExecutor, TabCompleter {
+public class EssentialsModule implements CeleryModule, Listener {
 
     private final CeleryUtils plugin;
     private final Map<UUID, Long> lastActivityMillis = new HashMap<>();
@@ -84,39 +63,13 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
     private final Random random = new Random();
     private BukkitTask afkTask;
     private FileConfiguration config;
-    private Command afkCommand;
-    private Command killallCommand;
-    private Command gmCommand;
-    private Command tempbanCommand;
-    private Command kickallCommand;
+    private CommandRegistrar registrar;
     private final Map<UUID, BukkitTask> tempbanTasks = new HashMap<>();
 
     private List<Component> motdComponents = Collections.emptyList();
     private int motdCurrentIndex;
     private BukkitTask motdRotationTask;
     private final List<String> motdInitWarnings = new ArrayList<>();
-
-    private Command tipsCommand;
-    private FileConfiguration tipsConfig;
-    private List<Component> tipsList = Collections.emptyList();
-    private int perPage = 5;
-    private Component tipsTitle;
-
-    private static final List<String> KILLALL_SELECTORS = List.of(
-            "items",
-            "hostile",
-            "animal",
-            "villager",
-            "golem",
-            "iron_golem",
-            "water",
-            "ambient",
-            "projectiles",
-            "vehicles",
-            "experience",
-            "mobs",
-            "all"
-    );
 
     public EssentialsModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -135,9 +88,8 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
         this.config = YamlConfiguration.loadConfiguration(configFile);
 
-        if (!setupCommands()) {
-            return false;
-        }
+        this.registrar = new CommandRegistrar(plugin);
+        registerCommands();
 
         PluginManager pluginManager = plugin.getServer().getPluginManager();
         pluginManager.registerEvents(this, plugin);
@@ -152,92 +104,23 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
 
         initializeMotd();
-        initializeTips();
         return true;
     }
 
-    private Command makeCommand(String name, String description) {
-        return new Command(name, description, "/" + name, List.of()) {
-            @Override
-            public boolean execute(CommandSender sender, String commandLabel, String[] args) {
-                return onCommand(sender, this, commandLabel, args);
-            }
-
-            @Override
-            public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
-                return EssentialsModule.this.onTabComplete(sender, this, alias, args);
-            }
-        };
-    }
-
-    private boolean setupCommands() {
-        CommandMap commandMap = Bukkit.getCommandMap();
-
-        boolean afkModuleEnabled = config.getBoolean("afk.enabled", true)
+    private void registerCommands() {
+        boolean afkEnabled = config.getBoolean("afk.enabled", true)
                 && config.getBoolean("afk.command-enabled", true);
-        if (afkModuleEnabled) {
-            afkCommand = makeCommand("afk", "Toggle AFK status");
-            commandMap.register("afk", plugin.getName(), afkCommand);
-        } else {
-            afkCommand = null;
-        }
-
-        if (config.getBoolean("killall.enabled", true)) {
-            killallCommand = makeCommand("killall", "Remove entities by category or type");
-            commandMap.register("killall", plugin.getName(), killallCommand);
-        } else {
-            killallCommand = null;
-        }
-
-        gmCommand = makeCommand("gm", "Quick gamemode switch");
-        commandMap.register("gm", plugin.getName(), gmCommand);
-
-        if (config.getBoolean("tempban.enabled", true)) {
-            tempbanCommand = makeCommand("tempban", "Temporarily ban a player");
-            commandMap.register("tempban", plugin.getName(), tempbanCommand);
-        } else {
-            tempbanCommand = null;
-        }
-
-        if (config.getBoolean("kickall.enabled", true)) {
-            kickallCommand = makeCommand("kickall", "Kick all players from the server");
-            commandMap.register("kickall", plugin.getName(), kickallCommand);
-        } else {
-            kickallCommand = null;
-        }
-
-        if (config.getBoolean("tips.enabled", true)) {
-            tipsCommand = makeCommand("tips", "Display server tips and tricks");
-            commandMap.register("tips", plugin.getName(), tipsCommand);
-        } else {
-            tipsCommand = null;
-        }
-
-        return true;
+        registrar.register("afk", "Toggle AFK status", new AfkCommand(plugin, config, this), afkEnabled);
+        registrar.register("killall", "Remove entities by category or type", new KillAllCommand(plugin, config), config.getBoolean("killall.enabled", true));
+        registrar.register("gm", "Quick gamemode switch", new GameModeCommand(plugin, config), true);
+        registrar.register("tempban", "Temporarily ban a player", new TempBanCommand(plugin, config, tempbanTasks), config.getBoolean("tempban.enabled", true));
+        registrar.register("kickall", "Kick all players from the server", new KickAllCommand(plugin, config), config.getBoolean("kickall.enabled", true));
+        registrar.register("tips", "Display server tips and tricks", new TipsCommand(plugin, config), config.getBoolean("tips.enabled", true));
     }
 
     @Override
     public void disable() {
-        // Unregister commands from the CommandMap so other plugins can use them
-        CommandMap commandMap = Bukkit.getCommandMap();
-        if (afkCommand != null) {
-            afkCommand.unregister(commandMap);
-        }
-        if (killallCommand != null) {
-            killallCommand.unregister(commandMap);
-        }
-        if (gmCommand != null) {
-            gmCommand.unregister(commandMap);
-        }
-        if (tempbanCommand != null) {
-            tempbanCommand.unregister(commandMap);
-        }
-        if (kickallCommand != null) {
-            kickallCommand.unregister(commandMap);
-        }
-        if (tipsCommand != null) {
-            tipsCommand.unregister(commandMap);
-        }
+        if (registrar != null) registrar.unregisterAll();
 
         for (BukkitTask task : tempbanTasks.values()) {
             task.cancel();
@@ -320,49 +203,7 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (command.getName().equalsIgnoreCase("afk")) {
-            return handleAfkCommand(sender);
-        }
-        if (command.getName().equalsIgnoreCase("killall")) {
-            return handleKillAllCommand(sender, args);
-        }
-        if (command.getName().equalsIgnoreCase("gm")) {
-            return handleGamemodeCommand(sender, args);
-        }
-        if (command.getName().equalsIgnoreCase("tempban")) {
-            return handleTempbanCommand(sender, args);
-        }
-        if (command.getName().equalsIgnoreCase("kickall")) {
-            return handleKickallCommand(sender, args);
-        }
-        if (command.getName().equalsIgnoreCase("tips")) {
-            return handleTipsCommand(sender, args);
-        }
-        return false;
-    }
-
-    private boolean handleAfkCommand(CommandSender sender) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(color("&cOnly players can use /afk."));
-            return true;
-        }
-        if (!config.getBoolean("afk.enabled", true)) {
-            player.sendMessage(color("&cAFK is disabled on this server."));
-            return true;
-        }
-        if (!config.getBoolean("afk.command-enabled", true)) {
-            player.sendMessage(color(config.getString("messages.afk-command-disabled", "&cAFK command is disabled.")));
-            return true;
-        }
-
-        String permission = config.getString("afk.command-permission", "celeryutils.afk");
-        if (permission != null && !permission.isBlank() && !player.hasPermission(permission)) {
-            player.sendMessage(color(config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
-            return true;
-        }
-
+    public void toggleAfk(Player player) {
         boolean currentlyAfk = afkPlayers.contains(player.getUniqueId());
         if (currentlyAfk) {
             setAfk(player, false, true);
@@ -370,275 +211,6 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         } else {
             setAfk(player, true, true);
             player.sendMessage(color(config.getString("messages.afk-enabled", "&eYou are now AFK.")));
-        }
-        return true;
-    }
-
-    private boolean handleKillAllCommand(CommandSender sender, String[] args) {
-        if (!config.getBoolean("killall.enabled", true)) {
-            sender.sendMessage(color(config.getString("messages.killall-disabled", "&cKillall command is disabled.")));
-            return true;
-        }
-
-        String permission = config.getString("killall.command-permission", "celeryutils.killall");
-        if (permission != null && !permission.isBlank() && !sender.hasPermission(permission)) {
-            sender.sendMessage(color(config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
-            return true;
-        }
-
-        if (args.length < 1) {
-            sender.sendMessage(color(config.getString("messages.killall-usage", "&cUsage: /killall <selector|entity_type> [world]")));
-            return true;
-        }
-
-        String target = normalize(args[0]);
-        Predicate<Entity> filter = resolveFilter(target);
-        if (filter == null) {
-            sender.sendMessage(color(config.getString("messages.killall-unknown-target", "&cUnknown killall target: &f%target%")
-                    .replace("%target%", args[0])));
-            return true;
-        }
-
-        Collection<World> worlds = resolveWorlds(sender, args);
-        if (worlds.isEmpty()) {
-            sender.sendMessage(color(config.getString("messages.killall-unknown-world", "&cUnknown world: &f%world%")
-                    .replace("%world%", args.length > 1 ? args[1] : "")));
-            return true;
-        }
-
-        int removed = 0;
-        boolean allowNamed = config.getBoolean("killall.include-named-entities", false);
-        for (World world : worlds) {
-            for (Entity entity : new ArrayList<>(world.getEntities())) {
-                if (entity instanceof Player) {
-                    continue;
-                }
-                if (!allowNamed && entity instanceof LivingEntity living && living.customName() != null) {
-                    continue;
-                }
-                if (!filter.test(entity)) {
-                    continue;
-                }
-                entity.remove();
-                removed++;
-            }
-        }
-
-        sender.sendMessage(color(config.getString("messages.killall-result", "&aRemoved &f%count% &aentities for target &f%target%&a.")
-                .replace("%count%", Integer.toString(removed))
-                .replace("%target%", args[0])));
-        return true;
-    }
-
-    private boolean handleGamemodeCommand(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(color("&cOnly players can use /gm."));
-            return true;
-        }
-
-        if (args.length < 1) {
-            player.sendMessage(color("&cUsage: /gm <0|1|2|3|survival|creative|adventure|spectator>"));
-            return true;
-        }
-
-        String modeArg = args[0].toLowerCase(Locale.ROOT);
-        GameMode mode;
-
-        switch (modeArg) {
-            case "0", "s", "survival" -> mode = GameMode.SURVIVAL;
-            case "1", "c", "creative" -> mode = GameMode.CREATIVE;
-            case "2", "a", "adventure" -> mode = GameMode.ADVENTURE;
-            case "3", "sp", "spectator" -> mode = GameMode.SPECTATOR;
-            default -> {
-                player.sendMessage(color("&cUnknown gamemode: &f" + args[0]));
-                return true;
-            }
-        }
-
-        player.setGameMode(mode);
-        player.sendMessage(color("&aGamemode set to &f" + mode.name().toLowerCase(Locale.ROOT)));
-        return true;
-    }
-
-    private boolean handleTempbanCommand(CommandSender sender, String[] args) {
-        if (!config.getBoolean("tempban.enabled", true)) {
-            sendMsg(sender, config.getString("messages.tempban-usage", "<red>Usage:</red> <white>/tempban <player> <duration> [reason]</white>"));
-            return true;
-        }
-
-        String permission = config.getString("tempban.command-permission", "celeryutils.tempban");
-        if (permission != null && !permission.isBlank() && !sender.hasPermission(permission)) {
-            sender.sendMessage(color(config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
-            return true;
-        }
-
-        if (args.length < 2) {
-            sendMsg(sender, config.getString("messages.tempban-usage", "<red>Usage:</red> <white>/tempban <player> <duration> [reason]</white>"));
-            return true;
-        }
-
-        Player target = Bukkit.getPlayerExact(args[0]);
-        if (target == null) {
-            sender.sendMessage(color(config.getString("messages.tempban-invalid-player", "&cPlayer &f%player% &cnot found.")
-                    .replace("%player%", args[0])));
-            return true;
-        }
-
-        // Parse duration string (e.g. "10m", "2h30m", "1d", "5m", or bare number = minutes)
-        long durationMillis;
-        try {
-            durationMillis = parseDuration(args[1]);
-        } catch (IllegalArgumentException e) {
-            sender.sendMessage(color(config.getString("messages.tempban-invalid-duration", "&cInvalid duration: &f%input%")
-                    .replace("%input%", args[1])));
-            return true;
-        }
-
-        if (durationMillis <= 0) {
-            sender.sendMessage(color("&cDuration must be greater than zero."));
-            return true;
-        }
-
-        String durationStr = formatDuration(durationMillis);
-        long ticks = durationMillis / 50L;
-
-        // Build ban reason
-        String reason = args.length > 2
-                ? String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length))
-                : config.getString("tempban.message-reason", "Temporary ban");
-
-        String senderName = sender instanceof Player ? sender.getName() : "Console";
-        long expiry = System.currentTimeMillis() + durationMillis;
-
-        // Cancel any existing unban task for this player
-        BukkitTask existingTask = tempbanTasks.remove(target.getUniqueId());
-        if (existingTask != null) {
-            existingTask.cancel();
-        }
-
-        // Perform the ban
-        target.banPlayer(reason, java.util.Date.from(java.time.Instant.ofEpochMilli(expiry)), senderName);
-
-        // Schedule automatic unban
-        BukkitTask unbanTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            target.getServer().getBanList(org.bukkit.BanList.Type.NAME).pardon(target.getName());
-            tempbanTasks.remove(target.getUniqueId());
-        }, ticks);
-        tempbanTasks.put(target.getUniqueId(), unbanTask);
-
-        // Notify target
-        String bannedMsg = config.getString("messages.tempban-banned",
-                "<yellow>You have been tempbanned by <white>%sender%</white> for <white>%duration%</white>.\n<yellow>Reason:</yellow> <white>%reason%</white>")
-                .replace("%sender%", senderName)
-                .replace("%duration%", durationStr)
-                .replace("%reason%", reason);
-        sendMsg(target, bannedMsg);
-
-        // Notify sender
-        String successMsg = config.getString("messages.tempban-success", "<green>Tempbanned <white>%player%</white> for <white>%duration%</white>.</green>")
-                .replace("%player%", target.getName())
-                .replace("%duration%", durationStr);
-        sendMsg(sender, successMsg);
-
-        return true;
-    }
-
-    private boolean handleKickallCommand(CommandSender sender, String[] args) {
-        if (!config.getBoolean("kickall.enabled", true)) {
-            sender.sendMessage(color(config.getString("messages.kickall-usage", "&cUsage: /kickall [reason]")));
-            return true;
-        }
-
-        String permission = config.getString("kickall.command-permission", "celeryutils.kickall");
-        if (permission != null && !permission.isBlank() && !sender.hasPermission(permission)) {
-            sender.sendMessage(color(config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
-            return true;
-        }
-
-        String reason = args.length > 0
-                ? String.join(" ", args)
-                : config.getString("kickall.message-reason", "Kicked by operator");
-
-        boolean includeOps = config.getBoolean("kickall.include-operators", false);
-        String broadcastMsg = config.getString("kickall.broadcast-message", "<red>Server is kicking all players. Rejoin shortly.</red>");
-        if (!broadcastMsg.isEmpty()) {
-            Component broadcastComponent = MiniMessage.miniMessage().deserialize(broadcastMsg);
-            plugin.getServer().broadcast(broadcastComponent);
-        }
-
-        // Snapshot online players; exclude the sender
-        List<Player> toKick = new ArrayList<>(Bukkit.getOnlinePlayers());
-        toKick.remove(sender);
-        if (!includeOps) {
-            toKick.removeIf(Player::isOp);
-        }
-
-        int count = toKick.size();
-        if (count > 0) {
-            String kickMsg = config.getString("messages.kickall-kicked", "<red>Kicked by operator:</red> <white>%reason%</white>")
-                    .replace("%reason%", reason);
-            final Component kickComponent = parseComponent(kickMsg);
-            // Brief delay so players see the broadcast before being disconnected
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                for (Player player : toKick) {
-                    if (player.isOnline()) {
-                        player.kick(kickComponent);
-                    }
-                }
-            }, 2L);
-        }
-
-        String successMsg = config.getString("messages.kickall-success", "<green>Kicked <white>%count%</white> players.</green>")
-                .replace("%count%", Integer.toString(count));
-        sendMsg(sender, successMsg);
-
-        return true;
-    }
-
-    private Collection<World> resolveWorlds(CommandSender sender, String[] args) {
-        if (args.length >= 2) {
-            World world = Bukkit.getWorld(args[1]);
-            if (world == null) {
-                return Collections.emptyList();
-            }
-            return List.of(world);
-        }
-        if (sender instanceof Player player) {
-            return List.of(player.getWorld());
-        }
-        return Bukkit.getWorlds();
-    }
-
-    private Predicate<Entity> resolveFilter(String target) {
-        return switch (target) {
-            case "items", "item", "drop", "drops", "dropped_items" -> entity -> entity instanceof Item;
-            case "hostile", "hostiles", "monster", "monsters" -> entity -> entity instanceof Monster;
-            case "animal", "animals", "passive", "passives" -> entity -> entity instanceof Animals;
-            case "villager", "villagers" -> entity -> entity instanceof Villager || entity instanceof WanderingTrader;
-            case "golem", "golems" -> entity -> entity instanceof Golem;
-            case "iron_golem", "irongolem" -> entity -> entity.getType() == EntityType.IRON_GOLEM;
-            case "water", "watermob", "watermobs", "aquatic" -> entity -> entity instanceof WaterMob;
-            case "ambient" -> entity -> entity instanceof Ambient;
-            case "projectile", "projectiles" -> entity -> entity instanceof Projectile;
-            case "vehicle", "vehicles" -> entity -> entity instanceof Vehicle;
-            case "xp", "experience", "experience_orbs", "orbs" -> entity -> entity instanceof ExperienceOrb;
-            case "mob", "mobs" -> entity -> entity instanceof LivingEntity;
-            case "all", "entities" -> entity -> !(entity instanceof Player);
-            default -> {
-                EntityType entityType = parseEntityType(target);
-                if (entityType == null || entityType == EntityType.PLAYER) {
-                    yield null;
-                }
-                yield entity -> entity.getType() == entityType;
-            }
-        };
-    }
-
-    private EntityType parseEntityType(String token) {
-        try {
-            return EntityType.valueOf(token.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return null;
         }
     }
 
@@ -824,96 +396,8 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         }
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (command.getName().equalsIgnoreCase("afk")) {
-            return Collections.emptyList();
-        }
-        if (command.getName().equalsIgnoreCase("gm")) {
-            return partialMatch(args[0], List.of("0","1","2","3","survival","creative","adventure","spectator"));
-        }
-        if (command.getName().equalsIgnoreCase("tempban")) {
-            if (args.length == 1) {
-                List<String> players = new ArrayList<>();
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    players.add(player.getName());
-                }
-                return partialMatch(args[0], players);
-            }
-            return Collections.emptyList();
-        }
-        if (command.getName().equalsIgnoreCase("kickall")) {
-            return Collections.emptyList();
-        }
-        if (command.getName().equalsIgnoreCase("tips")) {
-            if (args.length == 1 && !tipsList.isEmpty()) {
-                int totalPages = (tipsList.size() + perPage - 1) / perPage;
-                List<String> pages = new ArrayList<>();
-                for (int i = 1; i <= totalPages; i++) {
-                    pages.add(String.valueOf(i));
-                }
-                return partialMatch(args[0], pages);
-            }
-            return Collections.emptyList();
-        }
-
-        if (!command.getName().equalsIgnoreCase("killall")) {
-            return Collections.emptyList();
-        }
-
-        if (args.length == 1) {
-            List<String> options = new ArrayList<>(KILLALL_SELECTORS);
-            for (EntityType type : EntityType.values()) {
-                if (type == EntityType.UNKNOWN || type == EntityType.PLAYER) {
-                    continue;
-                }
-                options.add(type.name().toLowerCase(Locale.ROOT));
-            }
-            return partialMatch(args[0], options);
-        }
-        if (args.length == 2) {
-            List<String> worlds = new ArrayList<>();
-            for (World world : Bukkit.getWorlds()) {
-                worlds.add(world.getName());
-            }
-            return partialMatch(args[1], worlds);
-        }
-
-        return Collections.emptyList();
-    }
-
-    private List<String> partialMatch(String token, List<String> options) {
-        if (token == null || token.isEmpty()) {
-            return new ArrayList<>(options);
-        }
-        String normalized = token.toLowerCase(Locale.ROOT);
-        List<String> matches = new ArrayList<>();
-        for (String option : options) {
-            if (option.toLowerCase(Locale.ROOT).startsWith(normalized)) {
-                matches.add(option);
-            }
-        }
-        return matches;
-    }
-
-    private String normalize(String value) {
-        return value.toLowerCase(Locale.ROOT).replace('-', '_');
-    }
-
     private String color(String message) {
         return ChatColor.translateAlternateColorCodes('&', message == null ? "" : message);
-    }
-
-    private void sendMsg(CommandSender sender, String message) {
-        sender.sendMessage(parseComponent(message));
-    }
-
-    private Component parseComponent(String message) {
-        try {
-            return MiniMessage.miniMessage().deserialize(message);
-        } catch (Exception e) {
-            return LegacyComponentSerializer.legacyAmpersand().deserialize(message);
-        }
     }
 
     private String formatDuration(long millis) {
@@ -931,309 +415,8 @@ public class EssentialsModule implements CeleryModule, Listener, CommandExecutor
         return sb.toString().trim();
     }
 
-    private long parseDuration(String input) {
-        if (input == null || input.isBlank()) {
-            throw new IllegalArgumentException("Empty duration");
-        }
-
-        // Bare number → minutes (backwards compat)
-        if (input.chars().allMatch(Character::isDigit)) {
-            return Long.parseLong(input) * 60_000L;
-        }
-
-        long total = 0;
-        StringBuilder num = new StringBuilder();
-
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-            if (Character.isDigit(c)) {
-                num.append(c);
-            } else if (Character.isLetter(c)) {
-                if (num.isEmpty()) {
-                    throw new IllegalArgumentException("No number before unit");
-                }
-                long value = Long.parseLong(num.toString());
-                num.setLength(0);
-
-                StringBuilder unit = new StringBuilder();
-                unit.append(c);
-                while (i + 1 < input.length() && Character.isLetter(input.charAt(i + 1))) {
-                    unit.append(input.charAt(i + 1));
-                    i++;
-                }
-
-                String unitStr = unit.toString().toLowerCase(Locale.ROOT);
-                switch (unitStr) {
-                    case "s":
-                    case "sec":
-                    case "secs":
-                    case "second":
-                    case "seconds":
-                        total += value * 1000L;
-                        break;
-                    case "m":
-                    case "min":
-                    case "mins":
-                    case "minute":
-                    case "minutes":
-                        total += value * 60_000L;
-                        break;
-                    case "h":
-                    case "hr":
-                    case "hrs":
-                    case "hour":
-                    case "hours":
-                        total += value * 3_600_000L;
-                        break;
-                    case "d":
-                    case "day":
-                    case "days":
-                        total += value * 86_400_000L;
-                        break;
-                    case "w":
-                    case "week":
-                    case "weeks":
-                        total += value * 604_800_000L;
-                        break;
-                    default:
-                        throw new IllegalArgumentException("Unknown unit: " + unitStr);
-                }
-            } else {
-                throw new IllegalArgumentException("Invalid character: " + c);
-            }
-        }
-
-        if (num.length() > 0) {
-            throw new IllegalArgumentException("Trailing number without unit");
-        }
-
-        return total;
-    }
-
     private String miniMessageToLegacy(String message) {
         return LegacyComponentSerializer.legacySection().serialize(MiniMessage.miniMessage().deserialize(message == null ? "" : message));
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onServerListPing(ServerListPingEvent event) {
-        if (!config.getBoolean("motd.enabled", false)) {
-            return;
-        }
-        if (motdComponents.isEmpty()) {
-            return;
-        }
-
-        int mode = config.getString("rotation-mode", "SEQUENTIAL").equalsIgnoreCase("RANDOM") ? 1 : 0;
-        Component motd;
-        if (mode == 1) {
-            motd = motdComponents.get(random.nextInt(motdComponents.size()));
-        } else {
-            motd = motdComponents.get(motdCurrentIndex % motdComponents.size());
-        }
-        event.motd(motd);
-    }
-
-    private void initializeMotd() {
-        motdInitWarnings.clear();
-        if (!config.getBoolean("motd.enabled", false)) {
-            return;
-        }
-
-        loadMotdMessages();
-
-        int interval = config.getInt("motd.rotation-interval-seconds", 0);
-        if (interval > 0 && motdComponents.size() > 1) {
-            motdRotationTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
-                motdCurrentIndex = (motdCurrentIndex + 1) % motdComponents.size();
-            }, interval * 20L, interval * 20L);
-        }
-    }
-
-    private void disableMotd() {
-        if (motdRotationTask != null) {
-            motdRotationTask.cancel();
-            motdRotationTask = null;
-        }
-        motdComponents = Collections.emptyList();
-        motdCurrentIndex = 0;
-    }
-
-    private void loadMotdMessages() {
-        String messagesFile = config.getString("motd.messages-file", "motds.yml");
-        if (messagesFile == null || messagesFile.isBlank()) {
-            messagesFile = "motds.yml";
-        }
-        messagesFile = messagesFile.trim();
-
-        File file = new File(plugin.getDataFolder(), "modules/essentials/" + messagesFile);
-        if (!file.exists()) {
-            motdComponents = Collections.emptyList();
-            return;
-        }
-
-        List<?> rawList;
-        if (messagesFile.endsWith(".yml") || messagesFile.endsWith(".yaml")) {
-            rawList = YamlConfiguration.loadConfiguration(file).getList("messages");
-        } else {
-            try {
-                List<String> lines = new ArrayList<>();
-                for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
-                    if (!line.isBlank()) lines.add(line);
-                }
-                rawList = lines;
-            } catch (IOException e) {
-                plugin.getLogger().log(Level.WARNING, "Failed to read MOTD file: " + messagesFile, e);
-                motdComponents = Collections.emptyList();
-                return;
-            }
-        }
-
-        if (rawList == null || rawList.isEmpty()) {
-            motdComponents = Collections.emptyList();
-            return;
-        }
-
-        List<Component> components = new ArrayList<>();
-        for (Object entry : rawList) {
-            if (entry instanceof String s && !s.isBlank()) {
-                Component component = parseMotdComponent(s);
-                if (component != null) components.add(component);
-            }
-        }
-
-        motdComponents = components.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(components);
-    }
-
-    private void initializeTips() {
-        if (!config.getBoolean("tips.enabled", true)) {
-            tipsList = Collections.emptyList();
-            return;
-        }
-
-        String tipsFile = config.getString("tips.tips-file", "tips.yml");
-        if (tipsFile == null || tipsFile.isBlank()) {
-            tipsFile = "tips.yml";
-        }
-        tipsFile = tipsFile.trim();
-
-        File file = new File(plugin.getDataFolder(), "modules/essentials/" + tipsFile);
-        if (!file.exists()) {
-            tipsList = Collections.emptyList();
-            return;
-        }
-
-        tipsConfig = YamlConfiguration.loadConfiguration(file);
-
-        perPage = Math.max(1, config.getInt("tips.per-page", 5));
-
-        String titleStr = config.getString("tips.title", "<gold><bold>Tips & Tricks</bold></gold>");
-        tipsTitle = parseComponent(titleStr);
-
-        List<String> rawTips = tipsConfig.getStringList("tips");
-        if (rawTips.isEmpty()) {
-            tipsList = Collections.emptyList();
-            return;
-        }
-
-        List<Component> components = new ArrayList<>();
-        for (String raw : rawTips) {
-            if (raw != null && !raw.isBlank()) {
-                components.add(parseComponent(raw));
-            }
-        }
-        tipsList = Collections.unmodifiableList(components);
-    }
-
-    private boolean handleTipsCommand(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(color("&cOnly players can use /tips."));
-            return true;
-        }
-
-        String permission = config.getString("tips.command-permission");
-        if (permission != null && !permission.isBlank() && !player.hasPermission(permission)) {
-            player.sendMessage(color(config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
-            return true;
-        }
-
-        if (tipsList.isEmpty()) {
-            player.sendMessage(color("&cNo tips are available."));
-            return true;
-        }
-
-        int page = 1;
-        if (args.length > 0) {
-            try {
-                page = Integer.parseInt(args[0]);
-                if (page < 1) page = 1;
-            } catch (NumberFormatException ignored) {
-                sendMsg(player, "<red>Invalid page number: </red><white>" + args[0] + "</white>");
-                return true;
-            }
-        }
-
-        sendTipsPage(player, page);
-        return true;
-    }
-
-    private void sendTipsPage(Player player, int page) {
-        int totalPages = (tipsList.size() + perPage - 1) / perPage;
-        page = Math.max(1, Math.min(page, totalPages));
-
-        int from = (page - 1) * perPage;
-        int to = Math.min(from + perPage, tipsList.size());
-
-        Component separator = Component.text("─".repeat(Math.min(45, 45)))
-                .color(NamedTextColor.DARK_GRAY);
-
-        player.sendMessage(tipsTitle);
-        player.sendMessage(separator);
-
-        for (int i = from; i < to; i++) {
-            Component numbered = Component.text((i + 1) + ". ")
-                    .color(NamedTextColor.GOLD)
-                    .append(tipsList.get(i));
-            player.sendMessage(numbered);
-        }
-
-        if (totalPages <= 1) {
-            return;
-        }
-
-        player.sendMessage(separator);
-
-        Component prev;
-        if (page > 1) {
-            prev = Component.text("  « Previous  ")
-                    .color(NamedTextColor.GOLD)
-                    .clickEvent(ClickEvent.runCommand("/tips " + (page - 1)))
-                    .hoverEvent(HoverEvent.showText(
-                            Component.text("Go to page " + (page - 1))));
-        } else {
-            prev = Component.text("  « Previous  ")
-                    .color(NamedTextColor.DARK_GRAY);
-        }
-
-        Component pageIndicator = Component.text("Page " + page + "/" + totalPages)
-                .color(NamedTextColor.WHITE);
-
-        Component next;
-        if (page < totalPages) {
-            next = Component.text("  Next »  ")
-                    .color(NamedTextColor.GOLD)
-                    .clickEvent(ClickEvent.runCommand("/tips " + (page + 1)))
-                    .hoverEvent(HoverEvent.showText(
-                            Component.text("Go to page " + (page + 1))));
-        } else {
-            next = Component.text("  Next »  ")
-                    .color(NamedTextColor.DARK_GRAY);
-        }
-
-        Component nav = Component.join(
-                JoinConfiguration.noSeparators(),
-                prev, pageIndicator, next
-        );
-        player.sendMessage(nav);
     }
 
     private Component parseMotdComponent(String text) {

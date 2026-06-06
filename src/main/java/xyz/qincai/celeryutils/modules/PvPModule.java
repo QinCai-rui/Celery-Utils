@@ -4,11 +4,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandMap;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -20,13 +15,14 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import xyz.qincai.celeryutils.CeleryUtils;
 import xyz.qincai.celeryutils.api.CeleryModule;
+import xyz.qincai.celeryutils.command.CommandRegistrar;
+import xyz.qincai.celeryutils.command.PvPCommand;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,7 +35,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCompleter {
+public class PvPModule implements CeleryModule, Listener {
 
     private final CeleryUtils plugin;
     private FileConfiguration config;
@@ -58,8 +54,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
 
     private final Map<UUID, List<ItemStack>> dbLoadouts = new ConcurrentHashMap<>();
 
+    private CommandRegistrar registrar;
     private NamespacedKey pvpItemKey;
-    private Command pvpCommand;
 
     public PvPModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -115,19 +111,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
 
         this.pvpItemKey = new NamespacedKey(plugin, "pvp_item");
 
-        pvpCommand = new Command("pvp", "Toggle PvP loadout or manage gear", "/pvp <toggle|gear>", List.of()) {
-            @Override
-            public boolean execute(CommandSender sender, String commandLabel, String[] args) {
-                return onCommand(sender, this, commandLabel, args);
-            }
-
-            @Override
-            public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
-                return PvPModule.this.onTabComplete(sender, this, alias, args);
-            }
-        };
-        CommandMap commandMap = Bukkit.getCommandMap();
-        commandMap.register("pvp", plugin.getName(), pvpCommand);
+        this.registrar = new CommandRegistrar(plugin);
+        registrar.register("pvp", "Toggle PvP loadout or manage gear", new PvPCommand(this, config), true);
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
 
@@ -136,13 +121,8 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
 
     @Override
     public void disable() {
-        // Unregister command from the CommandMap so other plugins can use it
-        if (pvpCommand != null) {
-            CommandMap commandMap = Bukkit.getCommandMap();
-            pvpCommand.unregister(commandMap);
-        }
+        if (registrar != null) registrar.unregisterAll();
 
-        // Restore all players before disabling to prevent item loss
         for (UUID uuid : new ArrayList<>(activePvpPlayers)) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
@@ -201,73 +181,11 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
         }
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
-            return true;
-        }
-
-        Player player = (Player) sender;
-        
-        if (!player.hasPermission("celeryutils.pvp")) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', config.getString("messages.no-permission", "&cYou do not have permission to use this command.")));
-            return true;
-        }
-
-        if (player.isDead()) {
-            player.sendMessage(ChatColor.RED + "You cannot do this while dead.");
-            return true;
-        }
-
-        if (args.length == 0) {
-            player.sendMessage(ChatColor.RED + "Usage: /pvp <gear|toggle>");
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("gear")) {
-            if (activePvpPlayers.contains(player.getUniqueId())) {
-                player.sendMessage(ChatColor.RED + "You cannot edit your gear while PvP is active!");
-                return true;
-            }
-            openGearGUI(player);
-            return true;
-        } else if (args[0].equalsIgnoreCase("toggle")) {
-            if (activePvpPlayers.contains(player.getUniqueId())) {
-                untogglePvP(player);
-            } else {
-                togglePvP(player);
-            }
-            return true;
-        }
-
-        player.sendMessage(ChatColor.RED + "Usage: /pvp <gear|toggle>");
-        return true;
+    public boolean isActivePvpPlayer(UUID uuid) {
+        return activePvpPlayers.contains(uuid);
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        if (!command.getName().equalsIgnoreCase("pvp")) {
-            return Collections.emptyList();
-        }
-        if (args.length == 1) {
-            String token = args[0].toLowerCase();
-            List<String> options = Arrays.asList("gear", "toggle");
-            if (token.isEmpty()) {
-                return options;
-            }
-            List<String> matches = new ArrayList<>();
-            for (String option : options) {
-                if (option.startsWith(token)) {
-                    matches.add(option);
-                }
-            }
-            return matches;
-        }
-        return Collections.emptyList();
-    }
-
-    private void openGearGUI(Player player) {
+    public void openGearGUI(Player player) {
         int guiSize = config.getInt("options.gui-size", 54);
         if (guiSize < 9 || guiSize > 54 || guiSize % 9 != 0) {
             plugin.getLogger().warning("Invalid gui-size: " + guiSize + " for PvP Loadout. Must be a multiple of 9 and between 9 and 54. Defaulting to 54.");
@@ -315,7 +233,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
         saveToDatabase(player.getUniqueId(), items);
     }
 
-    private void togglePvP(Player player) {
+    public void togglePvP(Player player) {
         UUID uuid = player.getUniqueId();
         
         if (lastCombatTime.containsKey(uuid) && System.currentTimeMillis() - lastCombatTime.get(uuid) < 15000) {
@@ -369,7 +287,7 @@ public class PvPModule implements CeleryModule, Listener, CommandExecutor, TabCo
         player.sendMessage(ChatColor.translateAlternateColorCodes('&', config.getString("messages.toggled-on")));
     }
 
-    private void untogglePvP(Player player) {
+    public void untogglePvP(Player player) {
         UUID uuid = player.getUniqueId();
         
         List<ItemStack> pickUps = new ArrayList<>();
