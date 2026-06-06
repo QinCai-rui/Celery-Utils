@@ -420,6 +420,88 @@ public class EssentialsModule implements CeleryModule, Listener {
         return LegacyComponentSerializer.legacySection().serialize(MiniMessage.miniMessage().deserialize(message == null ? "" : message));
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onServerListPing(ServerListPingEvent event) {
+        if (!config.getBoolean("motd.enabled", false)) return;
+        if (motdComponents.isEmpty()) return;
+
+        int mode = config.getString("rotation-mode", "SEQUENTIAL").equalsIgnoreCase("RANDOM") ? 1 : 0;
+        Component motd;
+        if (mode == 1) {
+            motd = motdComponents.get(random.nextInt(motdComponents.size()));
+        } else {
+            motd = motdComponents.get(motdCurrentIndex % motdComponents.size());
+        }
+        event.motd(motd);
+    }
+
+    private void initializeMotd() {
+        motdInitWarnings.clear();
+        if (!config.getBoolean("motd.enabled", false)) return;
+
+        loadMotdMessages();
+
+        int interval = config.getInt("motd.rotation-interval-seconds", 0);
+        if (interval > 0 && motdComponents.size() > 1) {
+            motdRotationTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+                motdCurrentIndex = (motdCurrentIndex + 1) % motdComponents.size();
+            }, interval * 20L, interval * 20L);
+        }
+    }
+
+    private void disableMotd() {
+        if (motdRotationTask != null) {
+            motdRotationTask.cancel();
+            motdRotationTask = null;
+        }
+        motdComponents = Collections.emptyList();
+        motdCurrentIndex = 0;
+    }
+
+    private void loadMotdMessages() {
+        String messagesFile = config.getString("motd.messages-file", "motds.yml");
+        if (messagesFile == null || messagesFile.isBlank()) messagesFile = "motds.yml";
+        messagesFile = messagesFile.trim();
+
+        File file = new File(plugin.getDataFolder(), "modules/essentials/" + messagesFile);
+        if (!file.exists()) {
+            motdComponents = Collections.emptyList();
+            return;
+        }
+
+        List<?> rawList;
+        if (messagesFile.endsWith(".yml") || messagesFile.endsWith(".yaml")) {
+            rawList = YamlConfiguration.loadConfiguration(file).getList("messages");
+        } else {
+            try {
+                List<String> lines = new ArrayList<>();
+                for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
+                    if (!line.isBlank()) lines.add(line);
+                }
+                rawList = lines;
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to read MOTD file: " + messagesFile, e);
+                motdComponents = Collections.emptyList();
+                return;
+            }
+        }
+
+        if (rawList == null || rawList.isEmpty()) {
+            motdComponents = Collections.emptyList();
+            return;
+        }
+
+        List<Component> components = new ArrayList<>();
+        for (Object entry : rawList) {
+            if (entry instanceof String s && !s.isBlank()) {
+                Component component = parseMotdComponent(s);
+                if (component != null) components.add(component);
+            }
+        }
+
+        motdComponents = components.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(components);
+    }
+
     private Component parseMotdComponent(String text) {
         if (text == null || text.isBlank()) {
             return Component.empty();
