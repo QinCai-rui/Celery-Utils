@@ -99,6 +99,7 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             loadSettings(moduleConfig);
 
             plugin.getDatabaseManager().executeUpdate("CREATE TABLE IF NOT EXISTS discord_whitelist (discord_id BIGINT PRIMARY KEY, count INT)");
+            plugin.getDatabaseManager().executeUpdate("CREATE TABLE IF NOT EXISTS whitelist_entry_names (uuid VARCHAR(36) PRIMARY KEY, name VARCHAR(16) NOT NULL)");
             loadWhitelistCounts();
 
             String token = moduleConfig.getString("bot-token", "").trim();
@@ -189,6 +190,12 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         UUID playerUUID = event.getPlayer().getUniqueId();
         String playerName = event.getPlayer().getName();
         
+        // Skip if already cleaned in database - avoids unnecessary
+        // whitelist.json parsing and whitelist reload on every join
+        if (isWhitelistEntryCleaned(playerUUID, playerName)) {
+            return;
+        }
+        
         // Skip if we've recently processed this player to avoid duplicate work
         if (!recentlyProcessedPlayers.add(playerUUID)) {
             return;
@@ -202,10 +209,11 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                     updateWhitelistEntryName(playerUUID, playerName);
                     updatePremiumUsernameAndRemoveOffline(playerUUID, playerName);
                     removePremiumCounterpartForCrackedPlayer(playerUUID, playerName);
-                    // Clean up after a delay to allow for re-login
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> recentlyProcessedPlayers.remove(playerUUID), 1200L); // 1 minute
+                    markWhitelistEntryCleaned(playerUUID, playerName);
                 } catch (Exception e) {
                     plugin.getLogger().log(Level.WARNING, "Failed to update whitelist entry for " + playerName, e);
+                } finally {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> recentlyProcessedPlayers.remove(playerUUID), 1200L); // 1 minute
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -458,6 +466,13 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                     ensureWhitelistEntryNames(extractTargetNames(targets, username));
                     return null;
                 }).get();
+                // Clear any existing cleanup entries so first join triggers a fresh cleanup
+                for (org.bukkit.OfflinePlayer p : targets) {
+                    UUID targetUuid = p.getUniqueId();
+                    if (targetUuid != null) {
+                        removeWhitelistEntryCleaned(targetUuid);
+                    }
+                }
                 return "Added " + username + " to whitelist";
             } catch (ExecutionException e) {
                 plugin.getLogger().log(Level.WARNING, "Failed to execute whitelist API call", e);
@@ -751,6 +766,34 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING, "Failed to update whitelist.json names", e);
         }
+    }
+
+    private boolean isWhitelistEntryCleaned(UUID uuid, String name) {
+        try (java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement("SELECT name FROM whitelist_entry_names WHERE uuid = ?")) {
+            stmt.setString(1, uuid.toString());
+            try (java.sql.ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return name.equals(rs.getString("name"));
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            plugin.getLogger().log(Level.WARNING, "Failed to check whitelist cleanup status for " + uuid, e);
+        }
+        return false;
+    }
+
+    private void markWhitelistEntryCleaned(UUID uuid, String name) {
+        String uuidStr = uuid.toString();
+        if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
+            plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO whitelist_entry_names (uuid, name) VALUES ('" + uuidStr + "', '" + name + "')");
+        } else {
+            plugin.getDatabaseManager().executeUpdate("INSERT INTO whitelist_entry_names (uuid, name) VALUES ('" + uuidStr + "', '" + name + "') ON DUPLICATE KEY UPDATE name='" + name + "'");
+        }
+    }
+
+    private void removeWhitelistEntryCleaned(UUID uuid) {
+        plugin.getDatabaseManager().executeUpdate("DELETE FROM whitelist_entry_names WHERE uuid = '" + uuid.toString() + "'");
     }
 
     private void loadSettings(FileConfiguration config) {
