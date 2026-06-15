@@ -1,7 +1,11 @@
 package xyz.qincai.celeryutils.modules;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.advancement.Advancement;
+import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
@@ -106,6 +110,16 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
             }
 
             event.setCancelled(false);
+
+            Advancement advancement = Bukkit.getAdvancement(NamespacedKey.minecraft("adventure/totem_of_undying"));
+            if (advancement != null) {
+                AdvancementProgress progress = player.getAdvancementProgress(advancement);
+                if (!progress.isDone()) {
+                    for (String criteria : progress.getRemainingCriteria()) {
+                        progress.awardCriteria(criteria);
+                    }
+                }
+            }
 
             if (config.getBoolean("inventory-totem.activation-message.enabled", true)) {
                 String message = config.getString("inventory-totem.activation-message.text",
