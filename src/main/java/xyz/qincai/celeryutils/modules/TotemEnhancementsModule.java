@@ -152,7 +152,8 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         String causeName = resolveDeathCause(player);
         String broadcastMsg = null;
 
-        if (causeName.equals("ENTITY_ATTACK") || causeName.equals("ENTITY_SWEEP_ATTACK")) {
+        if (causeName.equals("ENTITY_ATTACK") || causeName.equals("ENTITY_SWEEP_ATTACK")
+                || causeName.equals("PROJECTILE") || causeName.equals("ENTITY_EXPLOSION")) {
             String entityType = resolveEntityType(player);
             if (entityType != null) {
                 broadcastMsg = config.getString("broadcast-messages.entity-attacks." + entityType);
@@ -182,8 +183,11 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
     private String resolveEntityType(Player player) {
         org.bukkit.event.entity.EntityDamageEvent event = player.getLastDamageCause();
-        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent) {
-            Entity damager = ((org.bukkit.event.entity.EntityDamageByEntityEvent) event).getDamager();
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent edbe) {
+            Entity damager = edbe.getDamager();
+            if (damager instanceof org.bukkit.entity.Projectile projectile && projectile.getShooter() instanceof Entity shooter) {
+                return shooter.getType().name();
+            }
             return damager.getType().name();
         }
         return null;
