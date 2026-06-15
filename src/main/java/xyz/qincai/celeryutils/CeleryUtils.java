@@ -107,8 +107,6 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 }
             } else if ("modules/discord-link/config.yml".equals(resourcePath)) {
                 legacyTarget = new File(getDataFolder(), "modules/discord-sync/config.yml");
-            } else if ("modules/essentials/config.yml".equals(resourcePath)) {
-                legacyTarget = new File(getDataFolder(), "modules/afk/config.yml");
             }
 
             if (!targetFile.exists() && legacyTarget != null && legacyTarget.exists()) {
@@ -427,7 +425,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
 
-        if (isModuleEnabled("modules.essentials.enabled", "modules.afk.enabled")) {
+        if (getConfig().getBoolean("modules.essentials.enabled", false)) {
             CeleryModule utilityToolsModule = new EssentialsModule(this);
             if (utilityToolsModule.initialize()) {
                 modules.put(utilityToolsModule.getName(), utilityToolsModule);
@@ -641,7 +639,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             boolean wantDeath = getConfig().getBoolean("modules.death-penalty.enabled", true);
             boolean wantPvp = getConfig().getBoolean("modules.pvp-module.enabled", true);
             boolean wantTotem = getConfig().getBoolean("modules.totemenhancements.enabled", true);
-            boolean wantUtilityTools = isModuleEnabled("modules.essentials.enabled", "modules.afk.enabled");
+            boolean wantUtilityTools = getConfig().getBoolean("modules.essentials.enabled", false);
 
             reloadModule("Discord Link", wantDiscord, () -> new DiscordLinkModule(this));
             reloadModule("Discord Whitelist Channel", wantWhitelist, () -> new DiscordWhitelistChannelModule(this));
@@ -748,11 +746,10 @@ public class CeleryUtils extends JavaPlugin implements Listener {
                 sender.sendMessage("§fDeath Penalty §7- §7Apply XP and/or money penalties when players die with keepInventory enabled.");
                 sender.sendMessage("§fPvP Module §7- §7Enable toggleable PvP mode with saved gear loadouts via /pvp.");
                 sender.sendMessage("§fTotemEnhancements §7- §7Enhances totems with inventory activation, death broadcasts, and more.");
-                sender.sendMessage("§fUtility Tools §7- §7Includes /afk and /killall with auto AFK detection and cleanup controls.");
+                sender.sendMessage("§fUtility Tools §7- §7Includes /killall with cleanup controls and other utilities.");
             }
-            case "utility", "afk", "killall", "tips" -> {
+            case "utility", "killall", "tips" -> {
                 sender.sendMessage("§b§lCeleryUtils §7- §fUtility Tools Help");
-                sender.sendMessage("§f/afk §7- §7Toggle your AFK state manually");
                 sender.sendMessage("§f/killall <target> [world] §7- §7Remove entities by selector or exact type");
                 sender.sendMessage("§f/tips [page] §7- §7Browse configurable server tips with a paged interface");
             }

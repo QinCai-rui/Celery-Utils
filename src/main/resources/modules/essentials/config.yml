@@ -1,54 +1,9 @@
 # Essentials Module Configuration
-# Includes AFK automation, killall controls, tempban, kickall, and server MOTD.
+# Includes killall controls, tempban, kickall, and server MOTD.
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
 config-version: 7
-
-afk:
-  # Set to true to enable the AFK system
-  enabled: false
-
-  # Allow players to toggle AFK manually with /afk.
-  command-enabled: true
-  command-permission: "celeryutils.afk"
-
-  # Permission that exempts AFK players from auto-kick.
-  kick-bypass-permission: "celeryutils.afk.bypass"
-
-  # Seconds of inactivity before a player is marked as AFK automatically.
-  timeout-seconds: 300
-
-  # Seconds of AFK time before the player is kicked from the server.
-  # Set to -1 to never kick AFK players.
-  kick-timeout-seconds: 900
-
-  # Show an AFK prefix next to the player's name in the TAB list.
-  tab-placeholder-enabled: true
-
-  # The prefix shown in TAB while a player is AFK. Supports MiniMessage.
-  tab-placeholder: "<gray>[AFK]</gray> "
-
-  # Show a big title when the player becomes AFK.
-  title-enabled: true
-
-  # The title text shown to AFK players. Supports MiniMessage.
-  title-text: "<red><bold>You are AFK</bold></red>"
-
-  # The subtitle text shown below the title. Supports MiniMessage.
-  subtitle-text: "<gray>Move to return</gray>"
-
-  # If true, looking around (yaw/pitch change) will reset the inactivity timer.
-  un-afk-on-camera-move: false
-
-  # Protection from damage/push/targeting while AFK.
-  protection:
-    # Player cannot take any damage while AFK.
-    invulnerable: false
-    # Player cannot be pushed by entities while AFK.
-    no-push: false
-    # Mobs will not target the player while AFK.
-    no-mob-targeting: false
 
 killall:
   # Set to false to disable /killall command handling.
@@ -128,11 +83,6 @@ tips:
 
 messages:
   no-permission: "&cYou do not have permission to use this command."
-  afk-enabled: "&eYou are now AFK."
-  afk-disabled: "&aYou are no longer AFK."
-  afk-disabled-auto: "&aYou are no longer AFK due to activity."
-  afk-command-disabled: "&cAFK command is disabled."
-  afk-kick: "&cKicked for being AFK too long."
   killall-disabled: "&cKillall command is disabled."
   killall-usage: "&cUsage: /killall <selector|entity_type> [world]"
   killall-unknown-target: "&cUnknown killall target: &f%target%"

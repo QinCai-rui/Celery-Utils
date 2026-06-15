@@ -6,7 +6,6 @@
 #
 # Tip numbers are automatically prepended.
 tips:
-  - "<gold>Tip:</gold> <white>Use </white><click:run_command:/afk><color:#55ffff><underlined>/afk</underlined></color></click><white> when stepping away from your keyboard. You'll be marked AFK and can't be damaged.</white>"
   - "<gold>Tip:</gold> <white>Visit our website: </white><click:open_url:https://example.com><blue><underlined>example.com</underlined></blue></click>"
   - "<gold>Tip:</gold> <white>Use </white><click:run_command:/tips 2><color:#55ffff><underlined>/tips <page></underlined></color></click><white> to navigate through tips!</white>"
   - "<gold>Tip:</gold> <white>Use </white><click:run_command:/gm creative><color:#55ffff><underlined>/gm creative</underlined></color></click><white> to switch to creative mode quickly.</white>"

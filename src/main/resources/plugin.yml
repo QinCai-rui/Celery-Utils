@@ -31,12 +31,6 @@ permissions:
   celeryutils.economy:
     description: Permission for Economy Permissions module
     default: op
-  celeryutils.afk:
-    description: Permission to use AFK command
-    default: true
-  celeryutils.afk.bypass:
-    description: Exempt player from AFK auto-kick
-    default: op
   celeryutils.killall:
     description: Permission to run /killall
     default: op
