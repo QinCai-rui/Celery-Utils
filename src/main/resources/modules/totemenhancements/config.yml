@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 6
+config-version: 7
 
 # Required permission to use totem enhancements (leave empty to not require a permission)
 permission-node: "celeryutils.totem"
@@ -70,6 +70,13 @@ broadcast-messages:
     PROJECTILE: "%player% was shot to death but came back to life &e[Totem Of Undying]&r"
     MACE_SMASH: "%player% was smashed by a mace but got the weight off &e[Totem Of Undying]&r"
     TRIDENT_SPEAR: "%player% was speared but felt nothing &e[Totem Of Undying]&r"
+    CUSTOM: "%player% died to unknown causes but came back anyway &e[Totem Of Undying]&r"
+    DRY_OUT: "%player% dried out but rehydrated &e[Totem Of Undying]&r"
+    KILL: "%player% was killed but refused to die &e[Totem Of Undying]&r"
+    POISON: "%player% was poisoned to death but found the antidote &e[Totem Of Undying]&r"
+    SUICIDE: "%player% took their own life but took it back &e[Totem Of Undying]&r"
+    WORLD_BORDER: "%player% walked beyond the edge of the world but got pulled back &e[Totem Of Undying]&r"
+    MELTING: "%player% melted away but solidified &e[Totem Of Undying]&r"
 
   # Per-entity death messages for entity attacks. Supports %player% and %entity%.
   # If a specific entity isn't listed, the %entity% fallback or the generic
@@ -103,3 +110,21 @@ broadcast-messages:
     ELDER_GUARDIAN: "%player% was blasted by an Elder Guardian but the curse lifted thanks to &e[Totem Of Undying]&r"
     SHULKER: "%player% was shot by a Shulker but opened back up thanks to &e[Totem Of Undying]&r"
     PILLAGER: "%player% was shot by a Pillager but survived the raid thanks to &e[Totem Of Undying]&r"
+    STRAY: "%player% was shot by a Stray but didn't get frostbite thanks to &e[Totem Of Undying]&r"
+    PHANTOM: "%player% was swooped by a Phantom but didn't have nightmares thanks to &e[Totem Of Undying]&r"
+    SLIME: "%player% was bounced by a Slime but didn't split thanks to &e[Totem Of Undying]&r"
+    GHAST: "%player% was fireballed by a Ghast but it was a dud thanks to &e[Totem Of Undying]&r"
+    SILVERFISH: "%player% was nibbled by a Silverfish but didn't get infected thanks to &e[Totem Of Undying]&r"
+    ENDERMITE: "%player% was swarmed by an Endermite but didn't get itchy thanks to &e[Totem Of Undying]&r"
+    ZOMBIE_VILLAGER: "%player% was infected by a Zombie Villager but got cured thanks to &e[Totem Of Undying]&r"
+    WOLF: "%player% was mauled by a Wolf but didn't get put down thanks to &e[Totem Of Undying]&r"
+    POLAR_BEAR: "%player% was swiped by a Polar Bear but didn't go into hibernation thanks to &e[Totem Of Undying]&r"
+    PANDA: "%player% was slapped by a Panda but didn't stay down thanks to &e[Totem Of Undying]&r"
+    GOAT: "%player% was rammed by a Goat but got right back up thanks to &e[Totem Of Undying]&r"
+    LLAMA: "%player% was spit on by a Llama but didn't get the message thanks to &e[Totem Of Undying]&r"
+    TRADER_LLAMA: "%player% was spit on by a Trader Llama but didn't get the message thanks to &e[Totem Of Undying]&r"
+    PUFFERFISH: "%player% was poisoned by a Pufferfish but didn't puff up thanks to &e[Totem Of Undying]&r"
+    GLOW_SQUID: "%player% was inked by a Glow Squid but didn't glow red thanks to &e[Totem Of Undying]&r"
+    BEE: "%player% was stung to death by a Bee but didn't get buzzed thanks to &e[Totem Of Undying]&r"
+    BOGGED: "%player% was shot by a Bogged but shook off the mushrooms thanks to &e[Totem Of Undying]&r"
+    BREEZE: "%player% was blasted by a Breeze but stood their ground thanks to &e[Totem Of Undying]&r"
