@@ -72,7 +72,7 @@ broadcast-messages:
     TRIDENT_SPEAR: "%player% was speared but felt nothing &e[Totem Of Undying]&r"
     CUSTOM: "%player% died to unknown causes but came back anyway &e[Totem Of Undying]&r"
     DRY_OUT: "%player% dried out but rehydrated &e[Totem Of Undying]&r"
-    KILL: "%player% was killed but refused to die &e[Totem Of Undying]&r"
+
     POISON: "%player% was poisoned to death but found the antidote &e[Totem Of Undying]&r"
     SUICIDE: "%player% took their own life but took it back &e[Totem Of Undying]&r"
     WORLD_BORDER: "%player% walked beyond the edge of the world but got pulled back &e[Totem Of Undying]&r"
