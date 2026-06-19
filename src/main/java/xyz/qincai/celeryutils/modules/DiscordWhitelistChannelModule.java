@@ -68,6 +68,8 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
     private int maxPlayersPerUser;
     private boolean requiresRole;
     private String requiredRoleId;
+    private boolean adminEnabled;
+    private String adminRoleId;
     private String uuidType;
     
     private final Map<Long, Integer> userWhitelistCount = new ConcurrentHashMap<>();
@@ -463,11 +465,13 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             return;
         }
 
-        boolean hasRole = false;
-        if (requiresRole && event.getMember() != null) {
-            hasRole = event.getMember().getRoles().stream().anyMatch(r -> r.getId().equals(requiredRoleId));
+        boolean isAdmin = false;
+        if (event.getMember() != null) {
+            if (adminEnabled && event.getMember().getRoles().stream().anyMatch(r -> r.getId().equals(adminRoleId))) {
+                isAdmin = true;
+            }
         }
-        if (!hasRole) {
+        if (!isAdmin) {
             for (UUID uuid : uuids) {
                 if (!isOwnedBy(uuid, discordId)) {
                     message.reply("❌ **" + username + "** - You did not whitelist this player.").queue();
@@ -823,6 +827,8 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         this.maxPlayersPerUser = config.getInt("max-players-per-user", 1);
         this.requiresRole = config.getBoolean("role-requirement.enabled", false);
         this.requiredRoleId = config.getString("role-requirement.role-id", "");
+        this.adminEnabled = config.getBoolean("admin.enabled", false);
+        this.adminRoleId = config.getString("admin.role-id", "");
         this.uuidType = config.getString("uuid-type", "AUTO").toUpperCase();
     }
 
