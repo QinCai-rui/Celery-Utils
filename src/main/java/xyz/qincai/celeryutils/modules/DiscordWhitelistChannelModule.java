@@ -69,7 +69,7 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
     private boolean requiresRole;
     private String requiredRoleId;
     private boolean adminEnabled;
-    private String adminRoleId;
+    private Set<String> adminRoleIds = new HashSet<>();
     private String uuidType;
     
     private final Map<Long, Integer> userWhitelistCount = new ConcurrentHashMap<>();
@@ -405,9 +405,11 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         while (matcher.find()) {
             String username = matcher.group(1);
             
+            boolean bypassLimit = isAdmin(event.getMember());
+
             // Check if user has reached their whitelist limit
             int currentCount = userWhitelistCount.getOrDefault(event.getAuthor().getIdLong(), 0);
-            if (currentCount >= maxPlayersPerUser) {
+            if (!bypassLimit && currentCount >= maxPlayersPerUser) {
                 results.append("❌ **").append(username).append("** - You've reached your whitelist limit (").append(maxPlayersPerUser).append(" player(s))\n");
                 continue;
             }
@@ -465,13 +467,7 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             return;
         }
 
-        boolean isAdmin = false;
-        if (event.getMember() != null) {
-            if (adminEnabled && event.getMember().getRoles().stream().anyMatch(r -> r.getId().equals(adminRoleId))) {
-                isAdmin = true;
-            }
-        }
-        if (!isAdmin) {
+        if (!isAdmin(event.getMember())) {
             for (UUID uuid : uuids) {
                 if (!isOwnedBy(uuid, discordId)) {
                     message.reply("❌ **" + username + "** - You did not whitelist this player.").queue();
@@ -503,6 +499,11 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
             message.reply("❌ **" + username + "** - " + result).queue();
             message.addReaction(Emoji.fromUnicode("❌")).queue();
         }
+    }
+
+    private boolean isAdmin(net.dv8tion.jda.api.entities.Member member) {
+        if (!adminEnabled || member == null) return false;
+        return member.getRoles().stream().anyMatch(r -> adminRoleIds.contains(r.getId()));
     }
 
     private String executeUnwhitelistCommand(Set<UUID> uuids) {
@@ -828,7 +829,7 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
         this.requiresRole = config.getBoolean("role-requirement.enabled", false);
         this.requiredRoleId = config.getString("role-requirement.role-id", "");
         this.adminEnabled = config.getBoolean("admin.enabled", false);
-        this.adminRoleId = config.getString("admin.role-id", "");
+        this.adminRoleIds = new HashSet<>(config.getStringList("admin.role-ids"));
         this.uuidType = config.getString("uuid-type", "AUTO").toUpperCase();
     }
 

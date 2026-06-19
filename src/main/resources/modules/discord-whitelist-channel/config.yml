@@ -2,7 +2,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 3
+config-version: 4
 
 # Discord bot token for the whitelist bot
 bot-token: "YOUR_DISCORD_BOT_TOKEN_HERE"
@@ -27,9 +27,10 @@ role-requirement:
   # Discord role ID (set enabled to true to use this)
   role-id: ""
 
-# Admin role configuration — users with this role can unwhitelist any player
+# Admin role configuration — users with these roles bypass limits and can unwhitelist any player
 admin:
-  # Set to true to enable admin bypass for unwhitelisting
+  # Set to true to enable admin bypass
   enabled: false
-  # Discord role ID that grants admin unwhitelist access
-  role-id: ""
+  # List of Discord role IDs that grant admin access
+  role-ids:
+    - ""
