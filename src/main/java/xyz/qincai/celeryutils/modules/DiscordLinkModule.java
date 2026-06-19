@@ -301,9 +301,9 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
                     }
 
                     if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
-                        plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + uuidText + "', " + discordId + ", '" + minecraftName + "')");
+                        plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES (?, ?, ?)", uuidText, discordId, minecraftName);
                     } else {
-                        plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + uuidText + "', " + discordId + ", '" + minecraftName + "') ON DUPLICATE KEY UPDATE discord_id=" + discordId + ", minecraft_name='" + minecraftName + "'");
+                        plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE discord_id=?, minecraft_name=?", uuidText, discordId, minecraftName, discordId, minecraftName);
                     }
                 } catch (Exception e) {
                     plugin.getLogger().warning("Skipping invalid Discord link entry during migration: " + key);
@@ -381,9 +381,9 @@ public class DiscordLinkModule extends ListenerAdapter implements CeleryModule, 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
-                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + minecraftUuid.toString() + "', " + discordId + ", '" + minecraftName + "')");
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES (?, ?, ?)", minecraftUuid.toString(), discordId, minecraftName);
                 } else {
-                    plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES ('" + minecraftUuid.toString() + "', " + discordId + ", '" + minecraftName + "') ON DUPLICATE KEY UPDATE discord_id=" + discordId + ", minecraft_name='" + minecraftName + "'");
+                    plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_links (minecraft_uuid, discord_id, minecraft_name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE discord_id=?, minecraft_name=?", minecraftUuid.toString(), discordId, minecraftName, discordId, minecraftName);
                 }
             } catch (Exception e) {
                 plugin.getLogger().log(Level.WARNING, "Failed to save Discord link to db", e);

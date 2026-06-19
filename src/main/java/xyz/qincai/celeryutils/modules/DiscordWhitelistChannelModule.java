@@ -392,9 +392,9 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
                 int updatedCount = currentCount + 1;
                 userWhitelistCount.put(event.getAuthor().getIdLong(), updatedCount);
                 if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
-                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_whitelist (discord_id, count) VALUES (" + event.getAuthor().getIdLong() + ", " + updatedCount + ")");
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO discord_whitelist (discord_id, count) VALUES (?, ?)", event.getAuthor().getIdLong(), updatedCount);
                 } else {
-                    plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_whitelist (discord_id, count) VALUES (" + event.getAuthor().getIdLong() + ", " + updatedCount + ") ON DUPLICATE KEY UPDATE count=" + updatedCount);
+                    plugin.getDatabaseManager().executeUpdate("INSERT INTO discord_whitelist (discord_id, count) VALUES (?, ?) ON DUPLICATE KEY UPDATE count=?", event.getAuthor().getIdLong(), updatedCount, updatedCount);
                 }
             } else {
                 results.append("❌ **").append(username).append("** - Error: ").append(result).append("\n");
@@ -784,16 +784,15 @@ public class DiscordWhitelistChannelModule extends ListenerAdapter implements Ce
     }
 
     private void markWhitelistEntryCleaned(UUID uuid, String name) {
-        String uuidStr = uuid.toString();
         if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
-            plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO whitelist_entry_names (uuid, name) VALUES ('" + uuidStr + "', '" + name + "')");
+            plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO whitelist_entry_names (uuid, name) VALUES (?, ?)", uuid.toString(), name);
         } else {
-            plugin.getDatabaseManager().executeUpdate("INSERT INTO whitelist_entry_names (uuid, name) VALUES ('" + uuidStr + "', '" + name + "') ON DUPLICATE KEY UPDATE name='" + name + "'");
+            plugin.getDatabaseManager().executeUpdate("INSERT INTO whitelist_entry_names (uuid, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name=?", uuid.toString(), name, name);
         }
     }
 
     private void removeWhitelistEntryCleaned(UUID uuid) {
-        plugin.getDatabaseManager().executeUpdate("DELETE FROM whitelist_entry_names WHERE uuid = '" + uuid.toString() + "'");
+        plugin.getDatabaseManager().executeUpdate("DELETE FROM whitelist_entry_names WHERE uuid = ?", uuid.toString());
     }
 
     private void loadSettings(FileConfiguration config) {

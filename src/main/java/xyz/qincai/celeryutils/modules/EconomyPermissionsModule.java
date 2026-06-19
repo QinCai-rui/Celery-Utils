@@ -335,9 +335,9 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
-                    plugin.getDatabaseManager().executeUpdate("INSERT OR IGNORE INTO economy_permissions (minecraft_uuid, permission_node) VALUES ('" + uuid.toString() + "', '" + permNode + "')");
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR IGNORE INTO economy_permissions (minecraft_uuid, permission_node) VALUES (?, ?)", uuid.toString(), permNode);
                 } else {
-                    plugin.getDatabaseManager().executeUpdate("INSERT IGNORE INTO economy_permissions (minecraft_uuid, permission_node) VALUES ('" + uuid.toString() + "', '" + permNode + "')");
+                    plugin.getDatabaseManager().executeUpdate("INSERT IGNORE INTO economy_permissions (minecraft_uuid, permission_node) VALUES (?, ?)", uuid.toString(), permNode);
                 }
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to insert economy permission into db", e);
@@ -350,7 +350,7 @@ public class EconomyPermissionsModule implements CeleryModule, Listener {
         if (perms != null) perms.remove(permNode);
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                plugin.getDatabaseManager().executeUpdate("DELETE FROM economy_permissions WHERE minecraft_uuid='" + uuid.toString() + "' AND permission_node='" + permNode + "'");
+                plugin.getDatabaseManager().executeUpdate("DELETE FROM economy_permissions WHERE minecraft_uuid=? AND permission_node=?", uuid.toString(), permNode);
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to delete economy permission from db", e);
             }

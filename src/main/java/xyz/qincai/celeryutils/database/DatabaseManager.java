@@ -8,8 +8,10 @@ import xyz.qincai.celeryutils.CeleryUtils;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.ResultSet;
 import java.util.logging.Level;
 
 public class DatabaseManager {
@@ -107,5 +109,27 @@ public class DatabaseManager {
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to execute update: " + query, e);
         }
+    }
+
+    public void executeUpdate(String query, Object... params) {
+        try (Connection conn = getConnection(); PreparedStatement stmt = prepare(conn, query, params)) {
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to execute update: " + query, e);
+        }
+    }
+
+    public ResultSet executeQuery(String query, Object... params) throws SQLException {
+        Connection conn = getConnection();
+        PreparedStatement stmt = prepare(conn, query, params);
+        return stmt.executeQuery();
+    }
+
+    private PreparedStatement prepare(Connection conn, String query, Object... params) throws SQLException {
+        PreparedStatement stmt = conn.prepareStatement(query);
+        for (int i = 0; i < params.length; i++) {
+            stmt.setObject(i + 1, params[i]);
+        }
+        return stmt;
     }
 }

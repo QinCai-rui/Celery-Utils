@@ -139,16 +139,16 @@ public class PvPModule implements CeleryModule, Listener {
 
     private void saveToDatabase(UUID uuid, List<ItemStack> loadout) {
         if (loadout == null) {
-            plugin.getDatabaseManager().executeUpdate("DELETE FROM pvp_loadouts WHERE minecraft_uuid='" + uuid.toString() + "'");
+            plugin.getDatabaseManager().executeUpdate("DELETE FROM pvp_loadouts WHERE minecraft_uuid=?", uuid.toString());
             return;
         }
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 String encoded = ItemSerialization.toBase64(loadout.toArray(new ItemStack[0]));
                 if (plugin.getDatabaseManager().getType() == xyz.qincai.celeryutils.database.DatabaseType.SQLITE) {
-                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO pvp_loadouts (minecraft_uuid, loadout) VALUES ('" + uuid.toString() + "', '" + encoded + "')");
+                    plugin.getDatabaseManager().executeUpdate("INSERT OR REPLACE INTO pvp_loadouts (minecraft_uuid, loadout) VALUES (?, ?)", uuid.toString(), encoded);
                 } else {
-                    plugin.getDatabaseManager().executeUpdate("INSERT INTO pvp_loadouts (minecraft_uuid, loadout) VALUES ('" + uuid.toString() + "', '" + encoded + "') ON DUPLICATE KEY UPDATE loadout='" + encoded + "'");
+                    plugin.getDatabaseManager().executeUpdate("INSERT INTO pvp_loadouts (minecraft_uuid, loadout) VALUES (?, ?) ON DUPLICATE KEY UPDATE loadout=?", uuid.toString(), encoded, encoded);
                 }
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to save pvp loadout to db", e);
