@@ -198,12 +198,10 @@ public class PvPModule implements CeleryModule, Listener {
         // Load saved items
         List<ItemStack> list = dbLoadouts.get(player.getUniqueId());
         if (list != null) {
-            if (list != null) {
-                for (int i = 0; i < list.size() && i < guiSize; i++) {
-                    Object obj = list.get(i);
-                    if (obj instanceof ItemStack) {
-                        gui.setItem(i, (ItemStack) obj);
-                    }
+            for (int i = 0; i < list.size() && i < guiSize; i++) {
+                Object obj = list.get(i);
+                if (obj instanceof ItemStack item) {
+                    gui.setItem(i, item);
                 }
             }
         }
@@ -291,46 +289,31 @@ public class PvPModule implements CeleryModule, Listener {
         UUID uuid = player.getUniqueId();
         
         List<ItemStack> pickUps = new ArrayList<>();
-        
-        String path = "loadouts." + uuid;
+        List<ItemStack> allItems = collectPlayerItems(player);
+
         List<ItemStack> rawList = dbLoadouts.get(player.getUniqueId());
         if (rawList != null) {
-            if (rawList != null) {
-                ItemStack[] updatedLoadout = new ItemStack[rawList.size()];
-                
-                List<ItemStack> allItems = new ArrayList<>();
-                for (ItemStack item : player.getInventory().getContents()) if (item != null) allItems.add(item);
-                for (ItemStack item : player.getInventory().getArmorContents()) if (item != null) allItems.add(item);
-                if (player.getInventory().getItemInOffHand() != null) allItems.add(player.getInventory().getItemInOffHand());
-                
-                for (ItemStack item : allItems) {
-                    if (item.getType() == Material.AIR) continue;
-                    
-                    if (isPvPItem(item)) {
-                        Integer index = item.getItemMeta().getPersistentDataContainer().get(pvpItemKey, PersistentDataType.INTEGER);
-                        if (index != null && index >= 0 && index < updatedLoadout.length) {
-                            if (updatedLoadout[index] == null) {
-                                updatedLoadout[index] = item.clone();
-                            } else {
-                                int newAmount = updatedLoadout[index].getAmount() + item.getAmount();
-                                updatedLoadout[index].setAmount(Math.min(newAmount, updatedLoadout[index].getMaxStackSize()));
-                            }
+            ItemStack[] updatedLoadout = new ItemStack[rawList.size()];
+            for (ItemStack item : allItems) {
+                if (item.getType() == Material.AIR) continue;
+                if (isPvPItem(item)) {
+                    Integer index = item.getItemMeta().getPersistentDataContainer().get(pvpItemKey, PersistentDataType.INTEGER);
+                    if (index != null && index >= 0 && index < updatedLoadout.length) {
+                        if (updatedLoadout[index] == null) {
+                            updatedLoadout[index] = item.clone();
+                        } else {
+                            int newAmount = updatedLoadout[index].getAmount() + item.getAmount();
+                            updatedLoadout[index].setAmount(Math.min(newAmount, updatedLoadout[index].getMaxStackSize()));
                         }
-                    } else {
-                        pickUps.add(item.clone());
                     }
+                } else {
+                    pickUps.add(item.clone());
                 }
-                
-                dbLoadouts.put(player.getUniqueId(), Arrays.asList(updatedLoadout));
-                saveToDatabase(player.getUniqueId(), dbLoadouts.get(player.getUniqueId()));
-                saveLoadouts();
             }
+            dbLoadouts.put(player.getUniqueId(), Arrays.asList(updatedLoadout));
+            saveToDatabase(player.getUniqueId(), dbLoadouts.get(player.getUniqueId()));
+            saveLoadouts();
         } else {
-            List<ItemStack> allItems = new ArrayList<>();
-            for (ItemStack item : player.getInventory().getContents()) if (item != null) allItems.add(item);
-            for (ItemStack item : player.getInventory().getArmorContents()) if (item != null) allItems.add(item);
-            if (player.getInventory().getItemInOffHand() != null) allItems.add(player.getInventory().getItemInOffHand());
-            
             for (ItemStack item : allItems) {
                 if (item.getType() != Material.AIR && !isPvPItem(item)) {
                     pickUps.add(item.clone());
@@ -364,6 +347,15 @@ public class PvPModule implements CeleryModule, Listener {
         
         activePvpPlayers.remove(uuid);
         player.sendMessage(ChatColor.translateAlternateColorCodes('&', config.getString("messages.toggled-off")));
+    }
+
+    private List<ItemStack> collectPlayerItems(Player player) {
+        List<ItemStack> items = new ArrayList<>();
+        for (ItemStack item : player.getInventory().getContents()) if (item != null) items.add(item);
+        for (ItemStack item : player.getInventory().getArmorContents()) if (item != null) items.add(item);
+        ItemStack offhand = player.getInventory().getItemInOffHand();
+        if (offhand != null) items.add(offhand);
+        return items;
     }
 
     private boolean isPvPItem(ItemStack item) {
@@ -466,14 +458,10 @@ public class PvPModule implements CeleryModule, Listener {
             } else if (mechanic.equalsIgnoreCase("DROP_ORIGINAL")) {
                 // Drop the pristine kit from their Vault directly
                 List<ItemStack> list = dbLoadouts.get(player.getUniqueId());
-        if (list != null) {
-                    if (list != null) {
-                        for (Object obj : list) {
-                            if (obj instanceof ItemStack && ((ItemStack) obj).getType() != Material.AIR) {
-                                ItemStack pristineItem = ((ItemStack) obj).clone();
-                                // Drop pristine item
-                                player.getWorld().dropItemNaturally(player.getLocation(), pristineItem);
-                            }
+                if (list != null) {
+                    for (Object obj : list) {
+                        if (obj instanceof ItemStack pristine && pristine.getType() != Material.AIR) {
+                            player.getWorld().dropItemNaturally(player.getLocation(), pristine.clone());
                         }
                     }
                 }

@@ -385,7 +385,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
 
-        if (getConfig().getBoolean("modules.economy-permissions.enabled", true)) {
+        if (getConfig().getBoolean("modules.economy-permissions.enabled", false)) {
             CeleryModule economyModule = new EconomyPermissionsModule(this);
             if (economyModule.initialize()) {
                 modules.put(economyModule.getName(), economyModule);
@@ -395,7 +395,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
 
-        if (getConfig().getBoolean("modules.death-penalty.enabled", true)) {
+        if (getConfig().getBoolean("modules.death-penalty.enabled", false)) {
             CeleryModule deathPenaltyModule = new DeathPenaltyModule(this);
             if (deathPenaltyModule.initialize()) {
                 modules.put(deathPenaltyModule.getName(), deathPenaltyModule);
@@ -405,7 +405,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
 
-        if (getConfig().getBoolean("modules.pvp-module.enabled", true)) {
+        if (getConfig().getBoolean("modules.pvp-module.enabled", false)) {
             CeleryModule pvpModule = new PvPModule(this);
             if (pvpModule.initialize()) {
                 modules.put(pvpModule.getName(), pvpModule);
@@ -415,7 +415,7 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
         }
 
-        if (getConfig().getBoolean("modules.totemenhancements.enabled", true)) {
+        if (getConfig().getBoolean("modules.totemenhancements.enabled", false)) {
             CeleryModule totemModule = new TotemEnhancementsModule(this);
             if (totemModule.initialize()) {
                 modules.put(totemModule.getName(), totemModule);
@@ -635,10 +635,10 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             // Determine desired enabled state from config
             boolean wantDiscord = isModuleEnabled("modules.discord-link.enabled", "modules.discord-sync.enabled");
             boolean wantWhitelist = getConfig().getBoolean("modules.discord-whitelist-channel.enabled", false);
-            boolean wantEcon = getConfig().getBoolean("modules.economy-permissions.enabled", true);
-            boolean wantDeath = getConfig().getBoolean("modules.death-penalty.enabled", true);
-            boolean wantPvp = getConfig().getBoolean("modules.pvp-module.enabled", true);
-            boolean wantTotem = getConfig().getBoolean("modules.totemenhancements.enabled", true);
+            boolean wantEcon = getConfig().getBoolean("modules.economy-permissions.enabled", false);
+            boolean wantDeath = getConfig().getBoolean("modules.death-penalty.enabled", false);
+            boolean wantPvp = getConfig().getBoolean("modules.pvp-module.enabled", false);
+            boolean wantTotem = getConfig().getBoolean("modules.totemenhancements.enabled", false);
             boolean wantUtilityTools = getConfig().getBoolean("modules.essentials.enabled", false);
 
             reloadModule("Discord Link", wantDiscord, () -> new DiscordLinkModule(this));

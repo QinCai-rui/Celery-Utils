@@ -21,7 +21,7 @@ public class GameModeCommand implements CeleryCommand {
     public String getDescription() { return "Quick gamemode switch"; }
 
     @Override
-    public String getPermission() { return null; }
+    public String getPermission() { return "celeryutils.gamemode"; }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {

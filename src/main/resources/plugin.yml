@@ -40,6 +40,9 @@ permissions:
   celeryutils.kickall:
     description: Permission to run /kickall
     default: op
+  celeryutils.gamemode:
+    description: Permission to use /gm
+    default: op
   celeryutils.tips:
     description: Permission to use /tips
     default: true
