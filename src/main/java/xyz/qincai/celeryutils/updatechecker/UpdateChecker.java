@@ -216,7 +216,7 @@ public final class UpdateChecker {
                     return UpdateResult.UPDATE_AVAILABLE;
                 }
             } else {
-                plugin.getLogger().info("CeleryUtils is up-to-date (" + currentVersion + ")");
+                plugin.getLogger().fine("CeleryUtils is up-to-date (" + currentVersion + ")");
                 return UpdateResult.UP_TO_DATE;
             }
         } catch (IOException | InterruptedException ex) {
