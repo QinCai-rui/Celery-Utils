@@ -44,6 +44,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
     private final Map<UUID, Integer> resurrectTick = new ConcurrentHashMap<>();
     private final Set<UUID> voidTotemDeaths = ConcurrentHashMap.newKeySet();
     private final Map<UUID, BukkitTask> levitationTasks = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> fastLevitationTicks = new ConcurrentHashMap<>();
 
     public TotemEnhancementsModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -78,6 +79,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         voidVictims.clear();
         resurrectTick.clear();
         voidTotemDeaths.clear();
+        fastLevitationTicks.clear();
 
         HandlerList.unregisterAll(this);
     }
@@ -210,25 +212,16 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
         UUID uuid = player.getUniqueId();
 
-        // During void escape: block void damage above void, pop another totem if falling back in
+        // During void escape: cancel void damage if ascending above void or normally floating up
         if (voidEscapeActive.contains(uuid)) {
             if (player.getLocation().getY() < config.getInt("void-totem.trigger-y", -64)) {
-                if (hasTotemForVoid(player)) {
-                    // Fell back into void with another totem — activate it
+                if (player.isSneaking()) {
+                    // Sneaking below void threshold → intentionally descending → let them die
+                } else {
+                    // Fell back below threshold — restart fast levitation burst
+                    fastLevitationTicks.put(uuid, 20);
                     event.setCancelled(true);
-                    voidVictims.add(uuid);
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            if (!player.isOnline()) {
-                                voidVictims.remove(uuid);
-                                return;
-                            }
-                            player.damage(1000, org.bukkit.damage.DamageSource.builder(org.bukkit.damage.DamageType.FALL).build());
-                        }
-                    }.runTask(plugin);
                 }
-                // no totem → let void damage through, player dies — no hardlock
             } else {
                 event.setCancelled(true);
             }
@@ -293,6 +286,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         BukkitTask oldTask = levitationTasks.remove(uuid);
         if (oldTask != null) oldTask.cancel();
         voidEscapeActive.add(uuid);
+        fastLevitationTicks.put(uuid, 20);
 
         int duration = config.getInt("void-totem.duration", 60);
 
@@ -322,8 +316,14 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
                         player.removePotionEffect(PotionEffectType.LEVITATION);
                         player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 40, 0, true, false, true));
                     } else {
-                        player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 4, true, false, true));
                         player.removePotionEffect(PotionEffectType.SLOW_FALLING);
+                        Integer fastLeft = fastLevitationTicks.get(uuid);
+                        if (fastLeft != null && fastLeft > 0) {
+                            player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 63, true, false, true));
+                            fastLevitationTicks.put(uuid, fastLeft - 1);
+                        } else {
+                            player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 4, true, false, true));
+                        }
                     }
                     ticksLeft--;
 
@@ -338,8 +338,8 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
                     }
                     wasSneaking = sneaking;
                 } else {
-                    player.removePotionEffect(PotionEffectType.LEVITATION);
-                    player.removePotionEffect(PotionEffectType.SLOW_FALLING);
+                    cleanupPlayer(player);
+                    return;
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L);
@@ -366,6 +366,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         voidEscapeActive.remove(uuid);
         voidVictims.remove(uuid);
         voidTotemDeaths.remove(uuid);
+        fastLevitationTicks.remove(uuid);
 
         player.removePotionEffect(PotionEffectType.LEVITATION);
         player.removePotionEffect(PotionEffectType.SLOW_FALLING);
