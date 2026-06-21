@@ -1,5 +1,6 @@
 package xyz.qincai.celeryutils.modules;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -13,19 +14,33 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import xyz.qincai.celeryutils.CeleryUtils;
 import xyz.qincai.celeryutils.api.CeleryModule;
 
 import java.io.File;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TotemEnhancementsModule implements CeleryModule, Listener {
 
     private final CeleryUtils plugin;
     private FileConfiguration config;
     private File configFile;
+
+    private final Set<UUID> voidVictims = new HashSet<>();
+    private final Set<UUID> voidEscapeActive = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, BukkitTask> levitationTasks = new ConcurrentHashMap<>();
 
     public TotemEnhancementsModule(CeleryUtils plugin) {
         this.plugin = plugin;
@@ -64,9 +79,15 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
             return;
         }
 
+        boolean wasVoidVictim = voidVictims.remove(player.getUniqueId());
+
         if (!event.isCancelled()) {
             if (config.getBoolean("hand-totem.broadcast", false)) {
                 tryBroadcast(player);
+            }
+
+            if (wasVoidVictim && config.getBoolean("void-totem.hand", true)) {
+                startVoidEscape(player);
             }
             return;
         }
@@ -136,7 +157,116 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
             if (config.getBoolean("inventory-totem.broadcast", true)) {
                 tryBroadcast(player);
             }
+
+            if (wasVoidVictim && config.getBoolean("void-totem.inventory", true)) {
+                startVoidEscape(player);
+            }
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onVoidDamage(EntityDamageEvent event) {
+        if (event.getCause() != EntityDamageEvent.DamageCause.VOID) return;
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        UUID uuid = player.getUniqueId();
+
+        if (voidEscapeActive.contains(uuid)) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (!config.getBoolean("void-totem.enabled", true)) return;
+        if (player.getLocation().getY() >= config.getInt("void-totem.trigger-y", -64)) return;
+
+        if (hasTotemForVoid(player)) {
+            voidVictims.add(uuid);
+            event.setDamage(1000);
+        }
+    }
+
+    private boolean hasTotemForVoid(Player player) {
+        boolean hand = config.getBoolean("void-totem.hand", true);
+        boolean inventory = config.getBoolean("void-totem.inventory", true);
+
+        if (hand) {
+            ItemStack mainHand = player.getInventory().getItemInMainHand();
+            ItemStack offHand = player.getInventory().getItemInOffHand();
+            if (mainHand.getType() == Material.TOTEM_OF_UNDYING || offHand.getType() == Material.TOTEM_OF_UNDYING) {
+                return true;
+            }
+        }
+
+        if (inventory) {
+            for (int i = 0; i <= 35; i++) {
+                ItemStack item = player.getInventory().getItem(i);
+                if (item != null && item.getType() == Material.TOTEM_OF_UNDYING) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void startVoidEscape(Player player) {
+        UUID uuid = player.getUniqueId();
+        voidEscapeActive.add(uuid);
+
+        int duration = config.getInt("void-totem.duration", 60);
+
+        player.sendActionBar(Component.text(ChatColor.translateAlternateColorCodes('&',
+                "&a" + duration + "s of Levitation! &eHold sneak to cushion landing")));
+
+        BukkitTask task = new BukkitRunnable() {
+            int ticksLeft = duration * 20;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.isDead()) {
+                    cleanupPlayer(player);
+                    return;
+                }
+
+                if (ticksLeft <= 0 && player.isOnGround()) {
+                    cleanupPlayer(player);
+                    return;
+                }
+
+                if (ticksLeft > 0) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 4, true, false, true));
+                    ticksLeft--;
+
+                    if (ticksLeft % 20 == 0) {
+                        player.sendActionBar(Component.text(ChatColor.translateAlternateColorCodes('&',
+                                "&a" + (ticksLeft / 20) + "s of Levitation! &eHold sneak to cushion landing")));
+                    }
+                } else {
+                    player.removePotionEffect(PotionEffectType.LEVITATION);
+                }
+
+                if (player.isSneaking()) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 40, 0, true, false, true));
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+
+        levitationTasks.put(uuid, task);
+    }
+
+    private void cleanupPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+
+        BukkitTask task = levitationTasks.remove(uuid);
+        if (task != null) task.cancel();
+
+        voidEscapeActive.remove(uuid);
+        voidVictims.remove(uuid);
+
+        player.removePotionEffect(PotionEffectType.LEVITATION);
+        player.removePotionEffect(PotionEffectType.SLOW_FALLING);
+
+        player.sendActionBar(Component.text(""));
     }
 
     private void tryBroadcast(Player player) {

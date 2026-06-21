@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 7
+config-version: 8
 
 # Required permission to use totem enhancements (leave empty to not require a permission)
 permission-node: "celeryutils.totem"
@@ -126,3 +126,17 @@ broadcast-messages:
     BEE: "%player% was stung by a Bee but &e[Totem Of Undying]&r numbed the pain"
     BOGGED: "%player% was shot by a Bogged but &e[Totem Of Undying]&r removed the mushrooms"
     BREEZE: "%player% was blasted by a Breeze but &e[Totem Of Undying]&r anchored them down"
+
+# When enabled, totems used in the void (y < -64) will grant Levitation V to
+# float the player back up.
+void-totem:
+  enabled: true
+
+  # Which totem sources trigger the void mechanic. this is seperately configured from the main triggers
+  hand: true
+  inventory: true
+
+  # The Y-level below which void mechanic activates
+  trigger-y: -64
+  # Duration of levitation in seconds
+  duration: 60
