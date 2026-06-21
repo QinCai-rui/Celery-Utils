@@ -40,6 +40,8 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
     private final Set<UUID> voidVictims = new HashSet<>();
     private final Set<UUID> voidEscapeActive = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> processedResurrections = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> voidTotemDeaths = ConcurrentHashMap.newKeySet();
     private final Map<UUID, BukkitTask> levitationTasks = new ConcurrentHashMap<>();
 
     public TotemEnhancementsModule(CeleryUtils plugin) {
@@ -72,6 +74,8 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         levitationTasks.clear();
         voidEscapeActive.clear();
         voidVictims.clear();
+        processedResurrections.clear();
+        voidTotemDeaths.clear();
     }
 
     @Override
@@ -85,14 +89,26 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
             return;
         }
 
-        boolean wasVoidVictim = voidVictims.remove(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+
+        // Prevent duplicate processing from multiple EntityResurrectEvent firings
+        if (!processedResurrections.add(uuid)) return;
+        Bukkit.getScheduler().runTaskLater(plugin, () -> processedResurrections.remove(uuid), 2L);
+
+        boolean wasVoidVictim = voidVictims.remove(uuid);
+        if (wasVoidVictim) {
+            voidTotemDeaths.add(uuid);
+        }
 
         if (!event.isCancelled()) {
-            if (config.getBoolean("hand-totem.broadcast", false)) {
+            if (wasVoidVictim) {
+                tryBroadcastVoid(player);
+            } else if (config.getBoolean("hand-totem.broadcast", false)) {
                 tryBroadcast(player);
             }
 
             if (wasVoidVictim && config.getBoolean("void-totem.hand", true)) {
+                sendVoidTotemMessage(player);
                 startVoidEscape(player);
             }
             return;
@@ -160,11 +176,14 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
                 player.playEffect(org.bukkit.EntityEffect.TOTEM_RESURRECT);
             }
 
-            if (config.getBoolean("inventory-totem.broadcast", true)) {
+            if (wasVoidVictim) {
+                tryBroadcastVoid(player);
+            } else if (config.getBoolean("inventory-totem.broadcast", true)) {
                 tryBroadcast(player);
             }
 
             if (wasVoidVictim && config.getBoolean("void-totem.inventory", true)) {
+                sendVoidTotemMessage(player);
                 startVoidEscape(player);
             }
         }
@@ -177,7 +196,8 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
         UUID uuid = player.getUniqueId();
 
-        if (voidEscapeActive.contains(uuid)) {
+        // Already escaping void or pending void totem activation — cancel damage
+        if (voidEscapeActive.contains(uuid) || voidVictims.contains(uuid)) {
             event.setCancelled(true);
             return;
         }
@@ -187,7 +207,20 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
         if (hasTotemForVoid(player)) {
             voidVictims.add(uuid);
-            event.setDamage(1000);
+            // Void damage bypasses totems in Minecraft, so cancel it
+            event.setCancelled(true);
+            // Apply non-void damage on next tick to trigger the totem
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (!player.isOnline()) {
+                        voidVictims.remove(uuid);
+                        voidTotemDeaths.remove(uuid);
+                        return;
+                    }
+                    player.damage(1000, EntityDamageEvent.DamageCause.FALL);
+                }
+            }.runTask(plugin);
         }
     }
 
@@ -260,6 +293,16 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         levitationTasks.put(uuid, task);
     }
 
+    private void sendVoidTotemMessage(Player player) {
+        if (config.getBoolean("void-totem.activation-message.enabled", true)) {
+            String message = config.getString("void-totem.activation-message.text",
+                    "&cYou fell into the void but &e[Totem Of Undying]&r pulled you back");
+            if (message != null && !message.isEmpty()) {
+                player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+            }
+        }
+    }
+
     private void cleanupPlayer(Player player) {
         UUID uuid = player.getUniqueId();
 
@@ -268,11 +311,29 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
         voidEscapeActive.remove(uuid);
         voidVictims.remove(uuid);
+        voidTotemDeaths.remove(uuid);
 
         player.removePotionEffect(PotionEffectType.LEVITATION);
         player.removePotionEffect(PotionEffectType.SLOW_FALLING);
 
         player.sendActionBar(Component.text(""));
+    }
+
+    private void tryBroadcastVoid(Player player) {
+        if (!config.getBoolean("void-totem.broadcast", true)) return;
+
+        String reqPermission = config.getString("permission-node", "celeryutils.totem");
+        if (reqPermission != null && !reqPermission.isEmpty() && !player.hasPermission(reqPermission)) {
+            return;
+        }
+
+        String msg = config.getString("void-totem.broadcast-message");
+        if (msg != null && !msg.isEmpty()) {
+            msg = msg.replace("%player%", player.getName());
+            plugin.getServer().broadcastMessage(ChatColor.translateAlternateColorCodes('&', msg));
+        } else {
+            broadcastDeathMessage(player);
+        }
     }
 
     private void tryBroadcast(Player player) {
@@ -285,7 +346,12 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
     }
 
     private void broadcastDeathMessage(Player player) {
-        String causeName = resolveDeathCause(player);
+        String causeName;
+        if (voidTotemDeaths.remove(player.getUniqueId())) {
+            causeName = "VOID";
+        } else {
+            causeName = resolveDeathCause(player);
+        }
         String broadcastMsg = null;
 
         if (causeName.equals("ENTITY_ATTACK") || causeName.equals("ENTITY_SWEEP_ATTACK")

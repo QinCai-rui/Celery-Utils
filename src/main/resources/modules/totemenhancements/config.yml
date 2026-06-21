@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 8
+config-version: 9
 
 # Required permission to use totem enhancements (leave empty to not require a permission)
 permission-node: "celeryutils.totem"
@@ -17,7 +17,7 @@ inventory-totem:
   broadcast: true
   # Message sent privately to the player on activation
   activation-message:
-    enabled: true
+    enabled: false
     text: "&aA Totem of Undying in your inventory saved your life!"
   # Whether to play the vanilla totem resurrect effect
   play-effect: true
@@ -140,3 +140,14 @@ void-totem:
   trigger-y: -64
   # Duration of levitation in seconds
   duration: 60
+
+  # Whether to broadcast a death message for void totem activations
+  broadcast: true
+  # Broadcast message template for void totem deaths. Supports & color codes and %player%.
+  # If empty, falls back to the VOID cause template in broadcast-messages.causes.
+  broadcast-message: "&c%player% fell into the void but &e[Totem Of Undying]&r pulled them back"
+
+  # Private message sent to the player when a totem activates from void damage
+  activation-message:
+    enabled: false
+    text: "&cYou fell into the void but &e[Totem Of Undying]&r pulled you back"
