@@ -53,7 +53,7 @@ broadcast-messages:
     HOT_FLOOR: "%player% walked on hot floor but &e[Totem Of Undying]&r cooled them down"
     CRAMMING: "%player% was crushed by the crowd but &e[Totem Of Undying]&r made space"
     DROWNING: "%player% drowned but &e[Totem Of Undying]&r let them breathe"
-    VOID: "%player% left the confines of this world but &e[Totem Of Undying]&r pulled them back"
+    VOID: "%player% didn't want to live in this world but &e[Totem Of Undying]&r pulled them back"
     STARVATION: "%player% starved to death but &e[Totem Of Undying]&r provided sustenance"
     LAVA: "%player% swam in lava but &e[Totem Of Undying]&r kept them cool"
     LAVA_BOUNCE: "%player% landed on the floor being magma but &e[Totem Of Undying]&r broke the fall"
