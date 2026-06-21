@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 9
+config-version: 10
 
 # Required permission to use totem enhancements (leave empty to not require a permission)
 permission-node: "celeryutils.totem"
@@ -140,6 +140,10 @@ void-totem:
   trigger-y: -64
   # Duration of levitation in seconds
   duration: 60
+
+  # How many ticks of damage immunity the player gets after void totem activation
+  # (default 100 = 5 seconds). Prevents dying from residual damage right after rescue.
+  invulnerability-ticks: 100
 
   # Whether to broadcast a death message for void totem activations
   broadcast: true
