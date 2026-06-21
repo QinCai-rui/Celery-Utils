@@ -66,6 +66,12 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
     @Override
     public void disable() {
+        for (BukkitTask task : levitationTasks.values()) {
+            task.cancel();
+        }
+        levitationTasks.clear();
+        voidEscapeActive.clear();
+        voidVictims.clear();
     }
 
     @Override

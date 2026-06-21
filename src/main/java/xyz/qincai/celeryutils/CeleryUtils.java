@@ -135,14 +135,14 @@ public class CeleryUtils extends JavaPlugin implements Listener {
             }
 
             FileConfiguration currentConfig = YamlConfiguration.loadConfiguration(targetFile);
-            double currentVersion = currentConfig.getDouble("config-version", 0.0);
-            double defaultVersion = defaultConfig.getDouble("config-version", currentVersion);
+            int currentVersion = currentConfig.getInt("config-version", 0);
+            int defaultVersion = defaultConfig.getInt("config-version", currentVersion);
 
-            if (Double.compare(currentVersion, defaultVersion) >= 0) {
+            if (currentVersion >= defaultVersion) {
                 return;
             }
 
-            backupConfig(targetFile, label, currentVersion, defaultVersion);
+            backupConfig(targetFile, label, (double) currentVersion, (double) defaultVersion);
             mergeMissingValues(currentConfig, defaultConfig, "");
             currentConfig.set("config-version", defaultVersion);
             saveYamlWithComments(targetFile, resourcePath, currentConfig);
@@ -324,6 +324,14 @@ public class CeleryUtils extends JavaPlugin implements Listener {
         if (value instanceof Boolean || value instanceof Number) return value.toString();
         String s = value.toString();
         if (s.isEmpty()) return "''";
+        if (s.contains("\n") || s.contains("\r") || s.contains("\t")) {
+            return "\"" + s
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t") + "\"";
+        }
         if (s.matches(".*[#:\\[\\]{},&*?|\\-<>=!%@`].*") || s.matches("^[\\s'\"].*") || s.matches(".*[\\s'\"]$")) {
             return "'" + s.replace("'", "''") + "'";
         }
