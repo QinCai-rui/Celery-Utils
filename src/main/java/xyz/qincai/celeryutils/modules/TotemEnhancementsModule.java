@@ -218,7 +218,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
                         voidTotemDeaths.remove(uuid);
                         return;
                     }
-                    player.damage(1000, EntityDamageEvent.DamageCause.FALL);
+                    player.damage(1000, org.bukkit.damage.DamageSource.builder(org.bukkit.damage.DamageSource.Type.FALL).build());
                 }
             }.runTask(plugin);
         }
