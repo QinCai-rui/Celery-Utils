@@ -3,7 +3,7 @@
 
 # NOTE: BUMP VERSION WHEN MAKING CHANGES TO THIS FILE
 # SERVER ADMIN: do not touch
-config-version: 7
+config-version: 8
 
 killall:
   # Set to false to disable /killall command handling.
@@ -80,6 +80,16 @@ tips:
 
   # Title shown at the top of the tips list. Supports MiniMessage.
   title: "<gold><bold>Tips</bold></gold>"
+
+resource-packs:
+  # Set to true to enable auto-sending resource packs on player join.
+  enabled: true
+
+  # Delay in ticks (20 ticks = 1 second) before sending packs to a player after they join.
+  # A small delay (e.g. 20-40 ticks) ensures the player is fully loaded before pack transfer starts.
+  delay-ticks: 20
+
+  # Packs are defined in packs.yml (see that file for documentation).
 
 messages:
   no-permission: "&cYou do not have permission to use this command."

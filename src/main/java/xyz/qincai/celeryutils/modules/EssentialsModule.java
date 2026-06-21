@@ -23,6 +23,7 @@ import xyz.qincai.celeryutils.command.KickAllCommand;
 import xyz.qincai.celeryutils.command.KillAllCommand;
 import xyz.qincai.celeryutils.command.TempBanCommand;
 import xyz.qincai.celeryutils.command.TipsCommand;
+import xyz.qincai.celeryutils.modules.essentials.ResourcePackManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,6 +45,7 @@ public class EssentialsModule implements CeleryModule, Listener {
     private FileConfiguration config;
     private CommandRegistrar registrar;
     private final Map<UUID, BukkitTask> tempbanTasks = new HashMap<>();
+    private ResourcePackManager resourcePackManager;
 
     private List<Component> motdComponents = Collections.emptyList();
     private int motdCurrentIndex;
@@ -74,6 +76,10 @@ public class EssentialsModule implements CeleryModule, Listener {
         pluginManager.registerEvents(this, plugin);
 
         initializeMotd();
+
+        resourcePackManager = new ResourcePackManager(plugin, config);
+        resourcePackManager.initialize();
+
         return true;
     }
 
@@ -95,6 +101,8 @@ public class EssentialsModule implements CeleryModule, Listener {
         tempbanTasks.clear();
 
         disableMotd();
+
+        if (resourcePackManager != null) resourcePackManager.disable();
     }
 
     @Override

@@ -1,0 +1,22 @@
+# Resource Pack Definitions
+# Define packs to auto-send to players on join.
+# Supports external URLs only (no local file serving).
+#
+# Each pack has:
+#   url       - Direct download URL for the resource pack ZIP.
+#   hash      - Optional SHA-1 hex hash of the pack file (for client caching/validation).
+#   prompt    - Optional message shown to the player (plain text).
+#   required  - If true, player must accept to join (default: false).
+#   permission - Optional permission node. Players without it won't get this pack.
+#   worlds    - Optional list of world names. If set, pack only applies in those worlds.
+#
+packs:
+  # example:
+  #   url: "https://example.com/packs/textures.zip"
+  #   hash: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+  #   prompt: "Download custom textures?"
+  #   required: false
+  #   permission: "celeryutils.resourcepack.textures"
+  #   worlds:
+  #     - "world"
+  #     - "world_nether"
