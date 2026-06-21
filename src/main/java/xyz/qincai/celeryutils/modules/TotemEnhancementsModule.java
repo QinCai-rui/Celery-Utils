@@ -93,7 +93,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
         // Prevent duplicate processing from multiple EntityResurrectEvent firings
         if (!processedResurrections.add(uuid)) return;
-        Bukkit.getScheduler().runTaskLater(plugin, () -> processedResurrections.remove(uuid), 2L);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> processedResurrections.remove(uuid), 100L);
 
         boolean wasVoidVictim = voidVictims.remove(uuid);
         if (wasVoidVictim) {
@@ -101,10 +101,18 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         }
 
         if (!event.isCancelled()) {
-            if (wasVoidVictim) {
-                tryBroadcastVoid(player);
-            } else if (config.getBoolean("hand-totem.broadcast", false)) {
-                tryBroadcast(player);
+            // If totem already consumed, this is a duplicate event — skip broadcast
+            ItemStack mainHand = player.getInventory().getItemInMainHand();
+            ItemStack offHand = player.getInventory().getItemInOffHand();
+            boolean hasTotem = mainHand.getType() == Material.TOTEM_OF_UNDYING
+                    || offHand.getType() == Material.TOTEM_OF_UNDYING;
+
+            if (hasTotem) {
+                if (wasVoidVictim) {
+                    tryBroadcastVoid(player);
+                } else if (config.getBoolean("hand-totem.broadcast", false)) {
+                    tryBroadcast(player);
+                }
             }
 
             if (wasVoidVictim && config.getBoolean("void-totem.hand", true)) {
@@ -196,8 +204,8 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
         UUID uuid = player.getUniqueId();
 
-        // Already escaping void or pending void totem activation — cancel damage
-        if (voidEscapeActive.contains(uuid) || voidVictims.contains(uuid)) {
+        // If a totem was already consumed for void escape, don't block void damage
+        if (voidVictims.contains(uuid)) {
             event.setCancelled(true);
             return;
         }
@@ -255,10 +263,11 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         int duration = config.getInt("void-totem.duration", 60);
 
         player.sendActionBar(Component.text(ChatColor.translateAlternateColorCodes('&',
-                "&a" + duration + "s of Levitation! &eHold sneak to cushion landing")));
+                "&a" + duration + "s &7| &eHold sneak to descend")));
 
         BukkitTask task = new BukkitRunnable() {
             int ticksLeft = duration * 20;
+            boolean wasSneaking = false;
 
             @Override
             public void run() {
@@ -272,20 +281,31 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
                     return;
                 }
 
+                boolean sneaking = player.isSneaking();
+
                 if (ticksLeft > 0) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 4, true, false, true));
+                    if (sneaking) {
+                        player.removePotionEffect(PotionEffectType.LEVITATION);
+                        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 40, 1, true, false, true));
+                    } else {
+                        player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 5, true, false, true));
+                        player.removePotionEffect(PotionEffectType.SLOW_FALLING);
+                    }
                     ticksLeft--;
 
-                    if (ticksLeft % 20 == 0) {
-                        player.sendActionBar(Component.text(ChatColor.translateAlternateColorCodes('&',
-                                "&a" + (ticksLeft / 20) + "s of Levitation! &eHold sneak to cushion landing")));
+                    if (ticksLeft % 20 == 0 || sneaking != wasSneaking) {
+                        if (sneaking) {
+                            player.sendActionBar(Component.text(ChatColor.translateAlternateColorCodes('&',
+                                    "&a" + (ticksLeft / 20) + "s &7| &aDescending... &7(sneak)")));
+                        } else {
+                            player.sendActionBar(Component.text(ChatColor.translateAlternateColorCodes('&',
+                                    "&a" + (ticksLeft / 20) + "s &7| &eHold sneak to descend")));
+                        }
                     }
+                    wasSneaking = sneaking;
                 } else {
                     player.removePotionEffect(PotionEffectType.LEVITATION);
-                }
-
-                if (player.isSneaking()) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 40, 0, true, false, true));
+                    player.removePotionEffect(PotionEffectType.SLOW_FALLING);
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L);
