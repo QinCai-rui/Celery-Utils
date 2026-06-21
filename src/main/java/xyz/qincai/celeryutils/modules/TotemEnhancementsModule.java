@@ -216,7 +216,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         if (voidEscapeActive.contains(uuid)) {
             if (player.getLocation().getY() < config.getInt("void-totem.trigger-y", -64)) {
                 // Fell back below threshold — restart fast levitation burst
-                fastLevitationTicks.put(uuid, 20);
+                fastLevitationTicks.put(uuid, 5);
                 event.setCancelled(true);
             } else {
                 event.setCancelled(true);
@@ -282,7 +282,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
         BukkitTask oldTask = levitationTasks.remove(uuid);
         if (oldTask != null) oldTask.cancel();
         voidEscapeActive.add(uuid);
-        fastLevitationTicks.put(uuid, 20);
+        fastLevitationTicks.put(uuid, 5);
 
         int duration = config.getInt("void-totem.duration", 60);
 
@@ -315,7 +315,7 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
                         player.removePotionEffect(PotionEffectType.SLOW_FALLING);
                         Integer fastLeft = fastLevitationTicks.get(uuid);
                         if (fastLeft != null && fastLeft > 0) {
-                            player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 31, true, false, true));
+                            player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 63, true, false, true));
                             fastLevitationTicks.put(uuid, fastLeft - 1);
                         } else {
                             player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 4, true, false, true));
