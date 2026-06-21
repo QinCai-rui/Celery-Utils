@@ -141,10 +141,6 @@ void-totem:
   # Duration of levitation in seconds
   duration: 60
 
-  # How many ticks of damage immunity the player gets after void totem activation
-  # (default 100 = 5 seconds). Prevents dying from residual damage right after rescue.
-  invulnerability-ticks: 100
-
   # Whether to broadcast a death message for void totem activations
   broadcast: true
   # Broadcast message template for void totem deaths. Supports & color codes and %player%.

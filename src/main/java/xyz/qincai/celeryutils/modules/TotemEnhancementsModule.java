@@ -210,7 +210,31 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
         UUID uuid = player.getUniqueId();
 
-        // If a totem was already consumed for void escape, don't block void damage
+        // During void escape: block void damage above void, pop another totem if falling back in
+        if (voidEscapeActive.contains(uuid)) {
+            if (player.getLocation().getY() < config.getInt("void-totem.trigger-y", -64)) {
+                if (hasTotemForVoid(player)) {
+                    // Fell back into void with another totem — activate it
+                    event.setCancelled(true);
+                    voidVictims.add(uuid);
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            if (!player.isOnline()) {
+                                voidVictims.remove(uuid);
+                                return;
+                            }
+                            player.damage(1000, org.bukkit.damage.DamageSource.builder(org.bukkit.damage.DamageType.FALL).build());
+                        }
+                    }.runTask(plugin);
+                }
+                // no totem → let void damage through, player dies — no hardlock
+            } else {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
         if (voidVictims.contains(uuid)) {
             event.setCancelled(true);
             return;
@@ -264,12 +288,13 @@ public class TotemEnhancementsModule implements CeleryModule, Listener {
 
     private void startVoidEscape(Player player) {
         UUID uuid = player.getUniqueId();
+
+        // Cancel any existing escape task before starting a new one
+        BukkitTask oldTask = levitationTasks.remove(uuid);
+        if (oldTask != null) oldTask.cancel();
         voidEscapeActive.add(uuid);
 
         int duration = config.getInt("void-totem.duration", 60);
-        int invulTicks = config.getInt("void-totem.invulnerability-ticks", 100);
-        player.setNoDamageTicks(invulTicks);
-        player.setMaximumNoDamageTicks(invulTicks);
 
         player.sendActionBar(Component.text(ChatColor.translateAlternateColorCodes('&',
                 "&a" + duration + "s &7| &eHold sneak to descend")));
